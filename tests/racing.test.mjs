@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCircuit } from '../dist/scene.js';
-import { createVehicle, stepVehicle, nearestTrack, updateProgress, getAIControls, collideVehicles, sampleTrack } from '../dist/physics.js';
+import { createVehicle, stepVehicle, nearestTrack, resolveTrackWall, updateProgress, getAIControls, collideVehicles, sampleTrack } from '../dist/physics.js';
 const track=createCircuit();
 
 function advance(car,controls,seconds,dt=1/120){for(let t=0;t<seconds;t+=dt)stepVehicle(car,controls,dt)}
@@ -42,6 +42,13 @@ test('reversing or jumping over the circuit cannot award a lap',()=>{
   assert.equal(c.lap,1);assert.equal(c.nextCheckpoint,1);
 });
 
+test('street walls keep the car on the drivable side of the visible railings',()=>{
+  const c=createVehicle(track,track.start,12);c.vx=15;c.vz=30;c.road=nearestTrack(track,c.x,c.z);
+  assert.equal(resolveTrackWall(c,track),true);assert.ok(c.road.distance<track.wallOffset);
+  assert.ok(c.road.distance+1.55<9.83,'the tire envelope stays inside the concrete wall');
+  assert.ok(c.speed<30,'contact dissipates energy');
+});
+
 test('an eight-car field completes a three-lap Grand Prix on the real circuit',()=>{
   const cars=Array.from({length:8},(_,i)=>{
     const offset=-8-Math.floor(i/2)*10-(i%2)*4,c=createVehicle(track,track.start+offset,i%2?3.6:-3.6);
@@ -51,7 +58,7 @@ test('an eight-car field completes a three-lap Grand Prix on the real circuit',(
   for(let k=0;k<36000&&cars.some(c=>c.lap<=3);k++){
     for(const c of cars){
       if(c.lap>3)continue;
-      stepVehicle(c,getAIControls(c,cars,track,'club',k*dt,dt),dt);c.road=nearestTrack(track,c.x,c.z,c.road.index);
+      stepVehicle(c,getAIControls(c,cars,track,'club',k*dt,dt),dt);c.road=nearestTrack(track,c.x,c.z,c.road.index);resolveTrackWall(c,track);
       c.maxOffset=Math.max(c.maxOffset,c.road.distance);updateProgress(c,track,k*dt,dt);
     }
     for(let i=0;i<cars.length;i++)for(let j=i+1;j<cars.length;j++)if(cars[i].lap<=3&&cars[j].lap<=3)collideVehicles(cars[i],cars[j]);

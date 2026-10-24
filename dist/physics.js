@@ -75,6 +75,15 @@ export function stepVehicle(car, input, dt, halfWidth = 9) {
   car.recovered = Math.max(0, car.recovered - dt);
 }
 
+export function resolveTrackWall(car, track) {
+  if (!track.wallOffset || car.road.distance <= track.wallOffset) return false;
+  const p=sampleTrack(track,car.road.s,Math.sign(car.road.offset)*(track.wallOffset-.25));
+  const along=(car.vx*p.tx+car.vz*p.tz)*.65;
+  car.x=p.x;car.z=p.z;car.vx=p.tx*along;car.vz=p.tz*along;car.speed=Math.abs(along);
+  car.road=nearestTrack(track,car.x,car.z,car.road.index);
+  return true;
+}
+
 export function updateProgress(car, track, raceTime, dt) {
   const delta = wrap(car.road.s - car.previousS + track.length / 2, track.length) - track.length / 2;
   car.previousS = car.road.s;
