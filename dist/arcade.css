@@ -25,3 +25,23 @@ body.photo .menu-card,body.photo .hud-top,body.photo .start-lights,body.photo .r
 @media(max-width:760px){.menu-card{width:340px!important;bottom:33px;padding:21px!important}.menu-card h1{font-size:35px!important}.menu-card em{font-size:32px!important}.minimap,body.racing .minimap{left:13px!important;bottom:16px!important;width:140px!important;height:118px!important}.race-message{font-size:8px;padding:9px;max-width:76%;top:25%}.hud-top{bottom:9px!important}.glass-icon{width:27px;height:27px}.session-actions #garage-shortcut,.session-actions #setup-shortcut{width:38px;font-size:7px}}
 @media(max-width:500px){.menu-card{width:292px!important;bottom:150px;padding:19px!important}.menu-card h1{font-size:32px!important}.menu-card em{font-size:29px!important}.menu-card p{font-size:10px!important}.menu-card .eyebrow{font-size:7px!important}.minimap,body.racing .minimap{width:123px!important;height:104px!important;left:11px!important;bottom:13px!important}.session-actions{gap:5px}.session-actions #garage-shortcut,.session-actions #setup-shortcut{display:none}.race-message{top:29%;white-space:normal}.touch-controls{bottom:144px!important}}
 @media(max-height:500px) and (min-width:501px){.menu-card{bottom:19px;padding:16px 20px!important;width:320px!important}.menu-card h1{font-size:30px!important;margin:10px 0 7px!important}.menu-card em{font-size:28px!important}.menu-card p{font-size:10px!important}.menu-card .primary-button{margin-top:12px;min-height:40px;padding:12px}.minimap,body.racing .minimap{width:137px!important;height:116px!important;bottom:13px!important}.touch-controls{bottom:135px!important}}
+
+.session-actions #map-button{font:700 9px var(--mono);width:40px;color:#ffe8bb}
+#circuit-overview{position:absolute;inset:0;z-index:12;cursor:grab;touch-action:none;color:#fff1d4}
+#circuit-overview[hidden]{display:none}
+#circuit-overview:active{cursor:grabbing}
+.overview-heading{position:absolute;top:18px;left:30px;pointer-events:none;text-shadow:0 2px 8px #211d28}
+.overview-heading>span{font:700 9px var(--mono);letter-spacing:2px;color:#ffdb9d}
+.overview-heading h2{font:800 28px var(--display);margin:5px 0 3px;letter-spacing:1px}
+.overview-heading p{font:700 10px var(--mono);letter-spacing:1px;margin:0}.overview-heading b{margin-left:18px;color:#ffe4a4}
+#close-overview{position:absolute;right:26px;top:27px;background:#302b34de;border:1px solid #eac58c99;color:#ffe5b7;padding:12px 16px;font:700 10px var(--mono);cursor:pointer}
+#close-overview kbd{margin-left:10px;background:#584847}
+.overview-controls{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:7px;white-space:nowrap}
+.overview-controls button{border:1px solid #eac58c66;background:#302b34ed;color:#ffe7bd;height:34px;min-width:34px;font:700 20px Arial;cursor:pointer}
+.overview-controls #overview-labels{font:700 9px var(--mono);padding:0 12px}.overview-controls span{font:700 9px var(--mono);background:#302b34de;padding:12px;color:#d9c5b0}
+.overview-corner,.overview-landmark{position:absolute;transform:translate(-50%,-100%);pointer-events:none;white-space:nowrap}
+.overview-corner{background:#3b3032e8;color:#ffe5a6;border:1px solid #d7ae77;font:800 10px var(--mono);padding:3px 5px;border-radius:3px;box-shadow:0 2px 5px #0003}
+.overview-landmark{width:max-content;max-width:180px;text-align:center;font:800 8px var(--mono);letter-spacing:.3px;color:#ffefd2;text-shadow:0 1px 3px #000,0 1px 7px #000;background:#383b32c7;padding:4px 6px;border-bottom:2px solid #d8c58c}
+.hide-labels .overview-corner,.hide-labels .overview-landmark{display:none}
+body.overview .menu-card,body.overview #arcade-hud,body.overview .minimap,body.overview .hud-top,body.overview .touch-controls,body.overview .finish-card,body.overview .race-message{display:none!important}
+@media(max-width:600px){.overview-heading{top:18px;left:16px}.overview-heading h2{font-size:23px}.overview-heading p{font-size:8px}.overview-heading b{margin-left:7px}#close-overview{top:auto;bottom:74px;right:16px;padding:10px}.overview-controls span{display:none}.overview-controls{bottom:25px}.overview-landmark{font-size:6px;max-width:110px;white-space:normal;line-height:1.3}.overview-corner{font-size:8px;padding:2px 4px}}

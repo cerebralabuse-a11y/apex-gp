@@ -1,16 +1,18 @@
 import * as THREE from './vendor/three.module.js';
-import { createCircuit } from './track.js';
+import { createCircuit, mapToWorld, lakeOutlines } from './track.js';
+import { buildNaviMumbai } from './city.js';
 import { sampleTrack, nearestTrack } from './physics.js';
 
 export function createLakesideWorld(canvas) {
   let seed=73643;
   const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
-  const material=(color)=>new THREE.MeshStandardMaterial({color,roughness:1,flatShading:true});
+  const palette=new Map();
+  const material=color=>{if(!palette.has(color))palette.set(color,new THREE.MeshStandardMaterial({color,roughness:1,flatShading:true}));return palette.get(color)};
   const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.outputColorSpace=THREE.SRGBColorSpace;
-  const scene=new THREE.Scene();scene.fog=new THREE.Fog('#d8b3a8',850,2400);
-  const camera=new THREE.PerspectiveCamera(50,1,.2,3600);
+  const scene=new THREE.Scene();scene.fog=new THREE.Fog('#d8b3a8',1500,4200);
+  const camera=new THREE.PerspectiveCamera(50,1,.2,6500);
   const ambient=new THREE.HemisphereLight('#ffe5c5','#ada48d',1.9);scene.add(ambient,new THREE.AmbientLight('#b9c1e3',1));
   const sun=new THREE.DirectionalLight('#ffd3a1',2.65);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-90,right:90,top:90,bottom:-90,near:1,far:1200});sun.shadow.bias=-.00012;sun.shadow.normalBias=.025;sun.position.set(300,230,300);scene.add(sun,sun.target);
   const skyMaterial=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,toneMapped:false,uniforms:{top:{value:new THREE.Color('#cd7e85')},bottom:{value:new THREE.Color('#ffb18b')}},vertexShader:'varying vec3 vPosition; void main(){vPosition=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:`uniform vec3 top;uniform vec3 bottom;varying vec3 vPosition;
@@ -18,7 +20,7 @@ export function createLakesideWorld(canvas) {
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
     }`});
-  const sky=new THREE.Mesh(new THREE.SphereGeometry(3000,24,12),skyMaterial);scene.add(sky);
+  const sky=new THREE.Mesh(new THREE.SphereGeometry(5200,24,12),skyMaterial);scene.add(sky);
   const sunDisc=new THREE.Mesh(new THREE.SphereGeometry(115,12,8),new THREE.MeshBasicMaterial({color:'#fff1b0',toneMapped:false,fog:false}));sunDisc.position.set(1680,190,1200);scene.add(sunDisc);
   const track=createCircuit(),{length,points}=track;
   const grass=material('#476b32'),road=material('#4b4146'),paving=material('#c48068'),cream=material('#d6c8bc'),wall=material('#7c7e98'),rail=material('#5a5b70'),bark=material('#594331');
@@ -39,19 +41,54 @@ export function createLakesideWorld(canvas) {
   ribbon(-37,37,-.08,grass);ribbon(-22,-9.5,.18,paving);ribbon(9.5,17.5,.18,paving);ribbon(-9.5,9.5,0,road);
   ribbon(-9.2,-8.9,.02,cream);ribbon(8.9,9.2,.02,cream);ribbon(-10.6,-9.5,.07,material('#7f8196'));ribbon(9.5,10.6,.07,material('#7f8196'));
 
-  const lakeShape=new THREE.Shape();
-  const lakeBoundary=[];
-  for(let i=0;i<=256;i++){const p=sampleTrack(track,i*length/256,-44);lakeBoundary.push(p);i?lakeShape.lineTo(p.x,-p.z):lakeShape.moveTo(p.x,-p.z)}lakeShape.closePath();
-  const lakeMaterial=new THREE.ShaderMaterial({toneMapped:false,uniforms:{time:{value:0},deep:{value:new THREE.Color('#677f96')},warm:{value:new THREE.Color('#bd9398')}},vertexShader:'varying vec3 vWorld;void main(){vWorld=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(vWorld,1.);}',fragmentShader:`uniform float time;uniform vec3 deep;uniform vec3 warm;varying vec3 vWorld;
-    void main(){vec3 eye=normalize(cameraPosition-vWorld);float fresnel=pow(1.-abs(eye.y),2.);float wave=sin(vWorld.z*2.2+sin(vWorld.x*.65)+time*.8)*sin(vWorld.x*1.3+vWorld.z*.2-time*.5);
-    float trail=exp(-pow((vWorld.x+115.-vWorld.z*.18)/105.,2.));float ripple=pow(max(0.,sin(vWorld.z*4.5+wave*1.5+time)),12.);
-    vec3 color=mix(deep,warm,.28+fresnel*.42)+wave*.016+vec3(1.,.5,.19)*trail*(.3+ripple*.15);
+  const lakes=lakeOutlines.map(outline=>{
+    const control=outline.map(([u,v])=>{const p=mapToWorld(u,v);return new THREE.Vector3(p.x,0,p.z)});
+    return new THREE.CatmullRomCurve3(control,true,'centripetal').getPoints(200).map(p=>({x:p.x,z:p.z}));
+  });
+  const lakeBoundary=lakes[0];
+  function insideLake(x,z,margin=0){return lakes.some(poly=>{
+    let inside=false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const a=poly[i],b=poly[j];
+      if((a.z>z)!==(b.z>z)&&x<(b.x-a.x)*(z-a.z)/(b.z-a.z)+a.x)inside=!inside;
+      if(margin&&Math.hypot(x-a.x,z-a.z)<margin)return true;
+    }return inside;
+  })}
+  function polygonShape(poly){const shape=new THREE.Shape();poly.forEach((p,i)=>i?shape.lineTo(p.x,-p.z):shape.moveTo(p.x,-p.z));shape.closePath();return shape}
+  // Cut actual holes in the terrain. Water and ground must not share a surface.
+  const landShape=polygonShape([{x:-2000,z:-2000},{x:2000,z:-2000},{x:2000,z:2000},{x:-2000,z:2000}]);
+  for(const poly of lakes)landShape.holes.push(new THREE.Path(polygonShape(poly).getPoints()));
+  ground.geometry.dispose();ground.geometry=new THREE.ShapeGeometry(landShape);
+  const lakeMaterial=new THREE.ShaderMaterial({toneMapped:false,uniforms:{time:{value:0},deep:{value:new THREE.Color('#248ca7')},warm:{value:new THREE.Color('#b99b9b')}},vertexShader:'varying vec3 vWorld;void main(){vWorld=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(vWorld,1.);}',fragmentShader:`uniform float time;uniform vec3 deep;uniform vec3 warm;varying vec3 vWorld;
+    void main(){vec3 eye=normalize(cameraPosition-vWorld);float fresnel=pow(1.-abs(eye.y),2.);float wave=sin(vWorld.z*.14+sin(vWorld.x*.07)+time*.4)*sin(vWorld.x*.11+vWorld.z*.04-time*.3);
+    float trail=exp(-pow((vWorld.x+115.-vWorld.z*.18)/105.,2.));float ripple=pow(max(0.,sin(vWorld.z*.55+wave+time*.5)),12.);
+    vec2 cell=floor(vWorld.xz/38.);float facet=fract(sin(dot(cell,vec2(12.9898,78.233))+step(fract(vWorld.x/38.)+fract(vWorld.z/38.),1.)*12.)*43758.5453);
+    vec3 color=mix(deep,warm,.13+fresnel*.38)+facet*.025+wave*.008+vec3(1.,.5,.19)*trail*(.055+ripple*.025);
     gl_FragColor=vec4(color,1.);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
     }`});
-  const lake=new THREE.Mesh(new THREE.ShapeGeometry(lakeShape,64),lakeMaterial);lake.rotation.x=-Math.PI/2;lake.position.y=-.035;scene.add(lake);
-  ribbon(-44.7,-43.3,.02,material('#c9bb9c'));ribbon(-44,-43.4,-.1,wall);
+  for(const poly of lakes){
+    const center=poly.reduce((a,p)=>({x:a.x+p.x/poly.length,z:a.z+p.z/poly.length}),{x:0,z:0});
+    const shore=poly.map(p=>({x:center.x+(p.x-center.x)*1.035,z:center.z+(p.z-center.z)*1.035}));
+    const bankShape=polygonShape(shore);bankShape.holes.push(new THREE.Path(polygonShape(poly).getPoints()));
+    const bank=new THREE.Mesh(new THREE.ShapeGeometry(bankShape),material('#d6c79b'));bank.rotation.x=-Math.PI/2;bank.position.y=-.055;bank.receiveShadow=true;scene.add(bank);
+    const lake=new THREE.Mesh(new THREE.ShapeGeometry(polygonShape(poly)),lakeMaterial);lake.rotation.x=-Math.PI/2;lake.position.y=-.2;scene.add(lake);
+  }
+
+  // Alternating kerbs, lane markings, grid boxes and a real start/finish line.
+  const dummyCurb=new THREE.Object3D(),curbCount=Math.ceil(length/3);
+  const curbs=new THREE.InstancedMesh(new THREE.BoxGeometry(1,.12,3.08),material('#ffffff'),curbCount*2);
+  for(let i=0;i<curbCount;i++)for(const side of [-1,1]){const p=sampleTrack(track,i*length/curbCount,side*9.65),k=i*2+(side>0?1:0);dummyCurb.position.set(p.x,.13,p.z);dummyCurb.rotation.y=p.yaw;dummyCurb.updateMatrix();curbs.setMatrixAt(k,dummyCurb.matrix);curbs.setColorAt(k,new THREE.Color(i%2?'#f4e9ce':'#c9483d'))}curbs.receiveShadow=true;scene.add(curbs);
+  const dashes=new THREE.InstancedMesh(new THREE.BoxGeometry(.18,.015,4),cream,Math.floor(length/13));
+  for(let i=0;i<dashes.count;i++){const p=sampleTrack(track,i*13);dummyCurb.position.set(p.x,.03,p.z);dummyCurb.rotation.y=p.yaw;dummyCurb.updateMatrix();dashes.setMatrixAt(i,dummyCurb.matrix)}scene.add(dashes);
+  const startLine=new THREE.Group();for(let i=0;i<18;i++)for(let j=0;j<2;j++)box(startLine,1,.018,1,material((i+j)%2?'#36343b':'#f3e7cb'),i-8.5,.04,j-.5);place(startLine,track.start);
+  for(let i=0;i<8;i++){const grid=new THREE.Group(),side=i%2?1:-1;for(const x of [-1.65,1.65])box(grid,.12,.02,5,cream,x,.03,0);box(grid,3.4,.02,.12,cream,0,.03,2.5);place(grid,track.start-8-i*14,side*1.6)}
+
+  for(const corner of track.corners){
+    const board=new THREE.Group(),c=document.createElement('canvas');c.width=128;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#294b43';ctx.fillRect(0,0,128,128);ctx.strokeStyle='#edd9a9';ctx.lineWidth=5;ctx.strokeRect(5,5,118,118);ctx.fillStyle='#fff0cc';ctx.font='bold 66px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('T'+corner.number,64,67);
+    const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;const sign=new THREE.Mesh(new THREE.PlaneGeometry(2.5,2.5),new THREE.MeshStandardMaterial({map:texture,side:THREE.DoubleSide}));sign.position.set(0,3,0);sign.rotation.y=Math.PI;board.add(sign);box(board,.12,2,.12,rail,0,1,0);place(board,corner.s-15,12.5);
+  }
 
   // Real rail geometry casts the long lattice shadows visible in the reference.
   function railingGeometry(){
@@ -77,17 +114,17 @@ export function createLakesideWorld(canvas) {
   const treePoints=[];
   for(let i=0;i<Math.floor(length/12);i++)for(const side of [-1,1]){
     if(side<0&&(i%4!==0||Math.abs(i*12-(track.start-86))<54))continue;
-    treePoints.push({...sampleTrack(track,i*12+random()*3,side*((side>0?20:25)+random()*8)),size:.85+random()*.65});
-    if(side>0&&i%2===0)treePoints.push({...sampleTrack(track,i*12+4,side*(38+random()*4)),size:.9+random()*.8});
+    treePoints.push({...sampleTrack(track,i*12+random()*3,side*(24+random()*8)),size:.9+random()*.65});
   }
-  treePoints.push({...sampleTrack(track,track.start-92,-18),size:.8,noShadow:true},{...sampleTrack(track,track.start-111,-17),size:.42,wide:3});
-  for(let i=0;i<160;i++){
-    const x=-600+random()*1400,z=-650+random()*1500;
-    if(nearestTrack(track,x,z).distance<48)continue;
-    // Keep the actual lake open; distant park trees sit beyond the circuit.
-    if(x>-205&&x<265&&z>-310&&z<390)continue;
-    treePoints.push({x,z,size:1+random()*.8});
+  for(let i=0;i<1550;i++){
+    const x=-760+random()*1580,z=-580+random()*1280;
+    if(nearestTrack(track,x,z).distance<32||insideLake(x,z,12))continue;
+    // Forest belts west of Palm Beach Road and the central Jewel park.
+    const park=x<60||z< -440||z>500||(x<380&&z<130);
+    if(park)treePoints.push({x,z,size:1.65+random()*1.2});
   }
+  const clearings=[[215,333,27],[237,338,27],[335,397,65],[354,469,80],[421,434,110]].map(([u,v,r])=>({...mapToWorld(u,v),r}));
+  for(let i=treePoints.length-1;i>=0;i--){const p=treePoints[i];if(insideLake(p.x,p.z,5)||clearings.some(c=>Math.hypot(p.x-c.x,p.z-c.z)<c.r))treePoints.splice(i,1)}
   const trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.22,.4,6,5),bark,treePoints.length),crowns=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),material('#ffffff'),treePoints.length*4);
   const greens=['#243b21','#3c5526','#53682b','#718139','#405c2d'];
   let ci=0;
@@ -131,7 +168,7 @@ export function createLakesideWorld(canvas) {
   }
 
   // The jewel sculpture and its lakeside plaza are visible from the starting straight.
-  const monumentS=track.start-86,plazaP=sampleTrack(track,monumentS,-40),plaza=new THREE.Group();
+  const monumentS=track.corners[0].s,plazaP=mapToWorld(215,333),plaza=new THREE.Group();
   const base=new THREE.Mesh(new THREE.CylinderGeometry(14,14,1,32),cream);base.position.y=-.23;base.receiveShadow=true;plaza.add(base);
   const plazaTop=new THREE.Mesh(new THREE.CylinderGeometry(13.6,13.6,.1,32),paving);plazaTop.position.y=.33;plazaTop.receiveShadow=true;plaza.add(plazaTop);
   for(const [r,h,y] of [[5.8,.5,.65],[4.7,.6,1.2]]){const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,12),cream);m.position.y=y;m.castShadow=true;plaza.add(m)}
@@ -147,23 +184,8 @@ export function createLakesideWorld(canvas) {
   const gem=new THREE.Mesh(gemGeometry,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.5,flatShading:true,side:THREE.DoubleSide,emissive:'#41313a',emissiveIntensity:.15}));gem.castShadow=true;plaza.add(gem);
   const edges=new THREE.EdgesGeometry(gemGeometry,1),edgePoints=edges.attributes.position.array,gold=new THREE.MeshBasicMaterial({color:'#ffe5a0'});
   for(let i=0;i<edgePoints.length;i+=6)between(plaza,new THREE.Vector3(...edgePoints.slice(i,i+3)),new THREE.Vector3(...edgePoints.slice(i+3,i+6)),.085,gold);
-  plaza.position.set(plazaP.x,0,plazaP.z);plaza.rotation.y=plazaP.yaw;plaza.scale.set(.7,.55,.7);scene.add(plaza);
-  const walk=new THREE.Group();box(walk,24,.3,7,paving,0,.12,0);for(const z of [-3.5,3.5]){box(walk,24,.5,.3,cream,0,.3,z);box(walk,24,.08,.09,rail,0,1.4,z);for(let x=-12;x<13;x+=3)box(walk,.09,1.1,.09,rail,x,.9,z)}place(walk,monumentS,-29);
-
-  // Across the water: apartment towers, smaller blocks, and a tree-lined shoreline.
-  const windows=[];
-  for(let i=0;i<44;i++){
-    const near=i<9,w=near?38+random()*9:18+random()*25,h=near?98+random()*32:16+random()*45,d=20+random()*24;
-    const building=new THREE.Group(),facade=material(near?'#9991a5':'#b6a0a0');
-    box(building,w,h,d,facade,0,h/2,0);box(building,w+.5,.9,d+.5,material('#b19b9c'),0,h,0);if(i%2===0)box(building,w*.3,3,d*.4,material('#b6a0a0'),0,h+1.5,0);
-    building.position.set(near?250+i*55:160+(i-9)*24,0,near?500+random()*45:600+random()*100);scene.add(building);
-    for(let y=3;y<h-2;y+=4.6){for(let x=-w/2+2;x<w/2-1;x+=3.6)windows.push({x:building.position.x+x,y,z:building.position.z-d/2-.03,ry:Math.PI});for(let z=-d/2+2;z<d/2-1;z+=3.6)windows.push({x:building.position.x-w/2-.03,y,z:building.position.z+z,ry:-Math.PI/2})}
-  }
-  const windowMesh=new THREE.InstancedMesh(new THREE.PlaneGeometry(1.2,2.2),new THREE.MeshBasicMaterial({color:'#ffffff',polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-4}),windows.length);
-  windows.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(0,p.ry,0);dummy.scale.set(1,1,1);dummy.updateMatrix();windowMesh.setMatrixAt(i,dummy.matrix);windowMesh.setColorAt(i,new THREE.Color(random()<.12?'#c9b4aa':'#5a5569'))});scene.add(windowMesh);
-  for(let i=0;i<18;i++){
-    const h=20+random()*40,building=new THREE.Group();box(building,25,h,27,material('#a79c9f'),0,h/2,0);building.position.set(530+random()*350,0,-300+i*65);scene.add(building);
-  }
+  plaza.position.set(plazaP.x,0,plazaP.z);plaza.rotation.y=.5;plaza.scale.set(1.5,1.55,1.5);scene.add(plaza);
+  const city=buildNaviMumbai(scene,track);
 
   const gantry=new THREE.Group(),gantrySteel=material('#66667d'),bannerCanvas=document.createElement('canvas');bannerCanvas.width=1536;bannerCanvas.height=256;
   const bc=bannerCanvas.getContext('2d');bc.fillStyle='#355850';bc.fillRect(0,0,1536,256);bc.strokeStyle='#cabfa1';bc.lineWidth=6;bc.strokeRect(9,9,1518,238);bc.fillStyle='#e1d8c6';bc.textAlign='center';bc.font='bold 82px Arial';bc.fillText('JEWEL OF NAVI MUMBAI',768,106);bc.font='35px Arial';bc.fillText('NERUL, NAVI MUMBAI',768,168);bc.font='30px Arial';bc.fillText('नेरुळ',125,86);bc.fillText('नवी मुंबई',1415,90);bc.fillText('नवी मुंबई',125,144);bc.fillText('नेरुळ',1415,146);
@@ -175,8 +197,20 @@ export function createLakesideWorld(canvas) {
   box(gantry,23,.22,1.5,gantrySteel,0,9,0);box(gantry,22.6,.18,1.5,gantrySteel,0,6.8,0);
   for(let x=-11;x<10;x+=2.2)for(const z of [-.65,.65]){between(gantry,new THREE.Vector3(x,6.8,z),new THREE.Vector3(x+2.2,9,z),.07,gantrySteel);between(gantry,new THREE.Vector3(x,9,z),new THREE.Vector3(x+2.2,6.8,z),.07,gantrySteel)}
   const banner=new THREE.Mesh(new THREE.PlaneGeometry(22.1,2.12),new THREE.MeshStandardMaterial({map:bannerTexture,roughness:1,side:THREE.DoubleSide}));banner.position.set(0,7.92,-.8);banner.rotation.y=Math.PI;gantry.add(banner);
-  const lamps=[];for(let i=0;i<5;i++)lamps.push(box(gantry,.22,.22,.1,new THREE.MeshBasicMaterial({color:'#34282c'}),-.8+i*.4,6.5,-.7));place(gantry,track.start-49);
+  const lamps=[];for(let i=0;i<5;i++)lamps.push(box(gantry,.22,.22,.1,new THREE.MeshBasicMaterial({color:'#34282c'}),-.8+i*.4,6.5,-.7));place(gantry,track.start+35);
   const gantryMaterials=new Set();gantry.traverse(o=>{if(o.material){o.material.transparent=true;gantryMaterials.add(o.material)}});
+
+  // Batch static park geometry; the cars, start lights and fading gantry stay dynamic.
+  scene.updateMatrixWorld(true);
+  const staticBatches=new Map(),staticMeshes=[];
+  scene.traverse(o=>{
+    if(!o.isMesh||o.isInstancedMesh||!o.material.isMeshStandardMaterial||o.material.map||o.material.vertexColors||o.material.transparent)return;
+    const g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);
+    if(!staticBatches.has(o.material))staticBatches.set(o.material,{position:[],normal:[]});
+    const b=staticBatches.get(o.material);b.position.push(g.attributes.position.array);b.normal.push(g.attributes.normal.array);staticMeshes.push(o);g.dispose();
+  });
+  for(const o of staticMeshes){o.parent.remove(o);o.geometry.dispose()}
+  for(const [m,b] of staticBatches){const geometry=new THREE.BufferGeometry();for(const key of ['position','normal']){const merged=new Float32Array(b[key].reduce((n,a)=>n+a.length,0));let offset=0;for(const a of b[key]){merged.set(a,offset);offset+=a.length}geometry.setAttribute(key,new THREE.BufferAttribute(merged,3))}const mesh=new THREE.Mesh(geometry,m);mesh.castShadow=mesh.receiveShadow=true;scene.add(mesh)}
 
   const smokeCount=240,smoke=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:'#ddd2c8',transparent:true,opacity:.27,depthWrite:false}),smokeCount),particles=Array.from({length:smokeCount},()=>({life:0}));smoke.frustumCulled=false;scene.add(smoke);let smokeIndex=0,smokeClock=0;
   function update(dt,cars,elapsed){
@@ -191,5 +225,5 @@ export function createLakesideWorld(canvas) {
     skyMaterial.uniforms.top.value.set(s[0]);skyMaterial.uniforms.bottom.value.set(s[1]);sun.color.set(s[2]);sun.intensity=s[3];ambient.intensity=s[4];scene.fog.color.set(s[5]);sunDisc.visible=mode!=='day';
   }
   function setQuality(high){renderer.setPixelRatio(Math.min(devicePixelRatio,high?2:1));renderer.shadowMap.enabled=high}
-  return {THREE,renderer,scene,camera,track,sun,sky,racingLine,lamps,lakeBoundary,setLighting,setQuality,update};
+  return {THREE,renderer,scene,camera,track,sun,sky,racingLine,lamps,lakeBoundary,lakes,landmarks:city.labels,setLighting,setQuality,update};
 }

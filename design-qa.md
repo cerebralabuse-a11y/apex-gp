@@ -1,38 +1,36 @@
-# Graphics recreation QA
+# Navi Mumbai map recreation QA
 
-final result: passed for playable art-direction recreation
+final result: passed for the playable map reconstruction
 
-This result does not certify pixel-identical fidelity. The provided image contains no original 3D assets, camera data, or scene file; this implementation uses new meshes and an original drivable course.
+## Targets and interpretation
 
-## Evidence and comparison conditions
+- `design/palm-beach-circuit-reference.png`: authoritative route reference. Trace its 14 numbered corners and road outline, then scale the sampled centerline to the stated 3.753 km.
+- `design/navi-mumbai-map-reference.png`: low-poly scenery reference. Recreate the lake and peninsula, water bodies, Jewel diamond, flamingo sculpture, temple, glass office district, blue-roofed sports academy with running oval/courts, Gymkhana, Karave gateway, residential streets, palms and wooded belts.
+- User-selected lighting: retain the existing warm sunset. The reference illustration's bright daylight is intentionally not copied.
+- `design/navi-mumbai-overview.png`: actual 3D circuit atlas in the desktop browser. `design/navi-mumbai-race.png`: actual driving scene. `design/navi-mumbai-mobile.png`: 428 x 800 responsive map inspection.
 
-- Source: `design/reference.png`, 1024 × 572 pixels.
-- Recreation: `design/recreation.png`, captured in the in-app browser at a 1024 × 572 CSS viewport.
-- Both images were opened in the same comparison input. Source shows a moving race; the recreation's clean photo view shows the starting grid. Lap, position, engine readings, car positions, and exhaust therefore differ with game state.
-- Responsive check: 428 × 800 CSS viewport. The game fills the viewport; the race controls, map, gauges, start button, and menus remain usable.
+## Visual comparison
 
-## Corrections made after comparison
+The route follows the second image's broad topology: east-west starting straight, northwestern bends and tight west-side sequence, long curved lakeside section, southern hairpin and eastern return. All 14 corner labels, the minimap, racing surface, kerbs, barriers, grid, driving line and AI share the sampled track data. The map is north-up in the minimap.
 
-1. Replaced the original Italian circuit, pit buildings, and grandstands with a lakeside street course, promenades, diamond monument, skyline, spectators, benches, and lamps.
-2. Corrected reversed road-surface triangle winding, which initially exposed the ground through the road.
-3. Matched the elevated rear-quarter framing and full-screen corner HUD. Removed website chrome from the game screen.
-4. Replaced smooth/PBR presentation with faceted foliage, matte colors, rainbow liveries, a warm sky, low sun, water ripples, and a sunset reflection.
-5. Corrected foliage and spectator colors that were being darkened twice by base-material and instance-color multiplication.
-6. Adjusted the monument's position and scale, opened the three-prong pedestal, increased skyline height, and added actual window geometry.
-7. Added real lattice railings and crisp long shadows. Near-camera decorative crowns use an unshadowed pass so the road remains readable.
-8. Added a proximity fade to the overhead gantry after a driving test showed it occluding the player.
-9. Kept the wall collision envelope inside the visible concrete barriers. Finished rivals no longer inject collision impulses after their simulation stops.
+The first image supplies the architectural vocabulary and relative districts. The new world contains real 3D geometry throughout, including the lake indentation beside the landscaped Jewel peninsula, southern water bodies, park paths, separate urban streets and landmark meshes. The screenshot illustration is stylized and its road geometry differs from the supplied circuit diagram; the circuit diagram takes priority for the race route. Geometry, exact tree distribution, architectural details and landmark scale remain artistic approximations rather than an asset-for-asset or surveyed reconstruction.
 
-## Interaction and implementation checks
+## Corrections verified
 
-- Seven simulation tests passed, including the complete eight-car, three-lap race on the new circuit.
-- Browser test: fresh countdown, acceleration to approximately 148 km/h while remaining on lap one, visible exhaust particles, animated RPM/speed instruments, cockpit camera, pause, and restart.
-- Desktop and phone-sized layouts inspected.
-- Browser console had no warnings or errors during the final rendering and driving checks.
-- Keyboard driving, camera, pause, recovery, garage, setup, help, and clean photo view remain available. Existing gamepad and touch bindings remain in place; no physical controller was available for a hardware test.
+- Removed overlapping terrain and shore surfaces beneath the water, resolving flickering and triangular bands in the aerial view. Actual terrain holes now surround the water meshes.
+- Added an aerial camera with drag orbit, zoom buttons/wheel, optional labels and a return control. Opening it freezes the simulation and closing it restores the prior session.
+- Corrected aerial fog distance and sky placement so the full map renders in the portrait camera framing.
+- Kept map text within the viewport and reduced the desktop title height to avoid the northern corner labels.
+- Added physical numbered corner boards, red/white kerbs, lane dashes, grid boxes and a chequered start line.
+- Batched architecture and park furniture by material and instanced foliage, palms, crowds, kerbs and railings.
 
-## Remaining fidelity differences
+## Verification
 
-- The course outline and minimap, detailed architecture, exact tree distribution, pedestrian models, and sculpture mesh differ from the source image.
-- Vegetation and water use a simpler procedural treatment. The result matches the requested low-poly sunset direction, landmark, waterfront theme, framing, colorful cars, and arcade HUD, but is not an exact asset replica.
-- Numeric HUD values follow the actual race rather than the static values in the source.
+- Eight automated tests passed, including 3.753 km length, ordered corner numbering, straight eight-car starting grid, physics/energy/contact/checkpoint checks, and all eight cars completing a three-lap race without recovery.
+- Browser: map entry/return, zoom, label toggle, pointer orbit, 428 x 800 portrait rendering, keyboard acceleration, photo mode and live HUD inspected. Driving capture shows 136 km/h on lap one.
+- Browser console: no errors or warnings in the final scene.
+- Existing car cameras, lighting options, race formats, sound and driving mechanics are preserved. Physical gamepad hardware was not tested in this update.
+
+## Remaining polish
+
+Individual buildings, tree placements and the illustrative composition can be refined further if more detailed landmark references are supplied. This does not block the playable map or its visual inspection.
