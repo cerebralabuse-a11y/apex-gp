@@ -9,8 +9,9 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="arcade.css">
+  <link rel="stylesheet" href="title.css">
 </head>
-<body>
+<body class="on-title">
   <header class="topbar">
     <a class="brand" href="./" aria-label="APEX GP home"><svg viewBox="0 0 50 30" aria-hidden="true"><path d="M0 28 19 2h12L12 28zm19 0L35 6l15 22H37l-5-8-6 8z" fill="currentColor"/></svg><span>APEX<span class="brand-gp">GP</span><small>FIND YOUR LIMIT.</small></span></a>
     <nav class="nav" aria-label="Game navigation"><button class="nav-item active" id="race-nav">Race</button><button class="nav-item" id="garage-nav">Garage</button><button class="nav-item" id="guide-nav">How to play <span>↗</span></button></nav>
@@ -41,11 +42,23 @@
       <aside class="leaderboard" aria-label="Race standings"><div class="board-title">LIVE STANDINGS <span>GAP</span></div><div id="standings"></div><div class="board-footer"><span class="sector-dot"></span> SECTOR <b id="sector">01</b> <span id="sector-status">ALL CLEAR</span></div></aside>
       <div class="race-message" id="race-message" role="status"></div>
       <div class="start-lights" id="start-lights" hidden><div><i></i><i></i><i></i><i></i><i></i></div><span>GET READY</span></div>
-      <div class="menu-card" id="menu-card">
-        <div class="eyebrow"><span></span> SUNSET STREET RACING</div><h1>JEWEL OF<br><em>NAVI MUMBAI.</em></h1><p>Race the waterfront. Chase the last light.</p>
-        <div class="menu-facts"><div><b>03</b><span>LAPS</span></div><div><b>08</b><span>DRIVERS</span></div><div><b id="circuit-length">2.4</b><span>KM CIRCUIT</span></div></div>
-        <button class="primary-button" id="start-button"><span>START RACE</span><span>↗</span></button>
-        <div class="menu-bottom"><button id="mode-button">GRAND PRIX <span>⌄</span></button><button class="garage-menu" id="garage-menu">GARAGE</button><button id="setup-button">RACE SETUP <span>↗</span></button></div>
+      <div class="title-screen" id="menu-card">
+        <header class="title-header"><span class="title-wordmark"><svg viewBox="0 0 40 32" aria-hidden="true"><path d="M1 30 19 2h9L10 30zm15 0L29 10l10 20H29l-4-8-5 8z" fill="currentColor"/></svg>APEX GP <i>/</i> INDEPENDENT RACING</span><span class="title-build">EARLY ACCESS <i>01</i></span></header>
+        <div class="title-content">
+          <div class="title-kicker"><span></span> THE STREETS ARE YOURS.</div>
+          <h1>APEX<span>GP</span><small>NAVI MUMBAI</small></h1>
+          <p>Race the waterfront. Chase the last light.</p>
+          <nav class="title-nav" aria-label="Main menu">
+            <button id="start-button" class="title-play"><span class="menu-number">01</span><span>PLAY</span><span class="menu-arrow">↗</span></button>
+            <button id="leaderboard-menu"><span class="menu-number">02</span><span>LEADERBOARD</span><span class="menu-soon">SOON</span><span class="menu-arrow">↗</span></button>
+            <button id="garage-menu"><span class="menu-number">03</span><span>GARAGE</span><span class="menu-arrow">↗</span></button>
+            <button id="setup-button"><span class="menu-number">04</span><span>SETTINGS</span><span class="menu-arrow">↗</span></button>
+            <button id="title-help"><span class="menu-number">05</span><span>HOW TO PLAY</span><span class="menu-arrow">↗</span></button>
+          </nav>
+          <button id="mode-button" class="title-mode" aria-label="Change race format">GRAND PRIX <span>⌄</span></button>
+        </div>
+        <div class="title-location"><span>01 / THE HOME CIRCUIT</span><strong>JEWEL LAKE</strong><small>PALM BEACH ROAD · NAVI MUMBAI</small><i></i></div>
+        <footer class="title-footer"><div class="menu-facts"><div><b>03</b><span>LAPS</span></div><div><b>08</b><span>DRIVERS</span></div><div><b id="circuit-length">3.753</b><span>KM CIRCUIT</span></div></div><span class="title-hint"><kbd>↑</kbd><kbd>↓</kbd> SELECT <i>·</i> <kbd>ENTER</kbd> CONFIRM</span><span class="title-tagline">FIND YOUR LIMIT.</span></footer>
       </div>
       <div class="camera-indicator"><span class="camera-cross">⊕</span><span id="camera-label">ARCADE CAM</span><kbd>C</kbd></div>
       <div class="telemetry" id="telemetry"><div class="rpm-bar" id="rpm-bar"></div><div class="dash-main"><div class="gear"><span>GEAR</span><b id="gear">N</b></div><div class="speed"><b id="speed">000</b><span>KM/H</span></div><div class="pedals"><div><i id="throttle-meter"></i></div><div><i id="brake-meter"></i></div><small>THR · BRK</small></div></div><div class="ers"><span><i></i> ERS <b id="ers-value">100%</b></span><div><i id="ers-bar"></i></div><kbd>SHIFT</kbd></div></div>
@@ -59,6 +72,14 @@
   <dialog id="garage-dialog"><div class="dialog-top"><span class="eyebrow">THE MACHINE BEHIND THE MOMENT</span><button class="close-button" aria-label="Close garage">×</button></div><h2>Your machinery<span>.</span></h2><p>APX–01 · Open-wheel. Pure purpose.</p><div class="livery-options"><button data-color="#a2cf3e" class="selected" style="--livery:#a2cf3e"><i></i> RAINBOW GP</button><button data-color="#37c6ca" style="--livery:#37c6ca"><i></i> GLACIER TEAL</button><button data-color="#e7ef48" style="--livery:#e7ef48"><i></i> ACID YELLOW</button></div><div class="spec-row"><div><small>POWER</small><strong>1,000 <span>HP</span></strong></div><div><small>TOP SPEED</small><strong>326 <span>KM/H</span></strong></div><div><small>WEIGHT</small><strong>798 <span>KG</span></strong></div></div><p class="setup-note">Automatic 8-speed gearbox · Rechargeable energy recovery · Soft compound tires. Livery changes are live.</p><button class="primary-button close-button">BACK TO THE CIRCUIT <span>↗</span></button></dialog>
   <dialog id="guide-dialog"><div class="dialog-top"><span class="eyebrow">EVERY CHAMPION STARTS SOMEWHERE</span><button class="close-button" aria-label="Close driving guide">×</button></div><h2>Find your limit<span>.</span></h2><p>Smooth is fast. Fast is everything.</p><div class="guide-controls"><div><kbd>W / ↑</kbd><span>Accelerate</span><kbd>S / ↓</kbd><span>Brake / reverse</span></div><div><kbd>A D / ← →</kbd><span>Steer</span><kbd>SHIFT</kbd><span>Deploy ERS boost</span></div><div><kbd>C</kbd><span>Change camera</span><kbd>R</kbd><span>Recover to circuit</span></div><div><kbd>B</kbd><span>3D circuit overview</span><kbd>V</kbd><span>Frozen photo view</span></div><div><kbd>ESC / P</kbd><span>Pause / resume</span><kbd>M</kbd><span>Toggle engine sound</span></div></div><div class="driving-tips"><p><b>01 / BRAKE BEFORE THE CORNER.</b> Brake on the straight, then turn in smoothly. Enable the driving guide in race setup if you need help finding the line.</p><p><b>02 / MAKE YOUR MOVE.</b> Follow a rival closely on straights for a slipstream. Hold Shift to deploy ERS; lift off or brake to recharge.</p><p><b>03 / KEEP IT CLEAN.</b> Street walls and rivals slow you down. Complete every sector to count a lap. Press V for a clean, frozen photo view; press V again to resume.</p></div><p class="setup-note">Gamepad supported: left stick to steer, RT to accelerate, LT to brake, A for ERS, Y for camera. Touch controls appear on mobile.</p><button class="primary-button close-button">LET’S DRIVE <span>↗</span></button></dialog>
   <dialog id="pause-dialog"><div class="dialog-top"><span class="eyebrow">TAKE A BREATH</span></div><h2>Race paused<span>.</span></h2><p>Your next move is waiting.</p><button class="primary-button" id="resume-button">BACK TO THE RACE <span>↗</span></button><button class="secondary-button" id="restart-button">RESTART SESSION ↗</button><button class="secondary-button" id="quit-button">RETURN TO GRID ↗</button></dialog>
+  <dialog id="leaderboard-dialog" aria-labelledby="leaderboard-title">
+    <header class="leaderboard-header"><span class="title-wordmark">APEX GP <i>/</i> THE TIMING ROOM</span><button class="close-button board-back" aria-label="Back to title screen">← BACK <kbd>ESC</kbd></button></header>
+    <div class="board-intro"><div><div class="title-kicker"><span></span> EVERY SECOND COUNTS.</div><h2 id="leaderboard-title">THE LEADERBOARD<span>.</span></h2><p>One circuit. Your name on the grid.</p></div><span class="board-status">COMPETITION COMING SOON</span></div>
+    <div class="board-circuit"><span>FASTEST LAP</span><span>JEWEL LAKE <i>/</i> 3.753 KM <i>/</i> NAVI MUMBAI</span></div>
+    <div class="board-table-wrap"><table class="future-board"><caption class="visually-hidden">Future competition fastest lap standings</caption><thead><tr><th scope="col">POS</th><th scope="col">DRIVER</th><th scope="col">BEST LAP</th><th scope="col">GAP</th></tr></thead><tbody><tr><td colspan="4"><div class="board-empty"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="44" r="26"/><path d="M33 7h14M40 7v11m20 4 7-7M40 27v18l12 7"/></svg><h3>The grid is waiting.</h3><p>Official standings will open when the competition begins.<br>For now, learn the circuit and find your pace.</p><span>NO RANKED RESULTS YET</span></div></td></tr></tbody></table></div>
+    <div class="board-personal"><div><span>YOUR PRACTICE BEST</span><p>Saved on this browser · Unranked</p></div><strong id="board-personal-best">--:--.---</strong><button id="board-practice">PRACTICE TIME TRIAL <span>↗</span></button></div>
+    <footer class="board-footer-note">Practice times are personal records. They do not enter a prize competition.</footer>
+  </dialog>
   <script type="module" src="game.js"></script>
 </body>
 </html>

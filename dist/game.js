@@ -8,6 +8,7 @@ let world;
 try { world=createWorld(canvas); } catch(e) { $('loading').hidden=true;$('webgl-error').hidden=false;console.error(e);throw e; }
 const {THREE,renderer,scene,camera,track,sun}=world;
 const arcadeHUD=createArcadeHUD($('arcade-hud'));
+const reducedMenuMotion=matchMedia('(prefers-reduced-motion: reduce)');let menuTime=0;
 const keys=new Set(),touch={};
 const storage={get(key,fallback){try{return localStorage.getItem('apex-'+key)||fallback}catch{return fallback}},set(key,value){try{localStorage.setItem('apex-'+key,String(value))}catch{}}};
 let overviewFrom='menu',orbitYaw=-.18,orbitPitch=.96,orbitZoom=1;
@@ -63,7 +64,7 @@ function resetGrid(){
   }
   raceTime=0;sessionBest=Infinity;countdown=0;accumulator=0;messageRemaining=0;$('race-message').classList.remove('show');
   $('finish-card').hidden=true;$('start-lights').hidden=true;$('menu-card').hidden=false;
-  document.body.classList.remove('racing');$('session-tag').innerHTML='<i></i> ON THE GRID';
+  document.body.classList.remove('racing');document.body.classList.add('on-title');$('session-tag').innerHTML='<i></i> ON THE GRID';
   $('lap-total').textContent=mode==='race'?'/ 03':'/ ∞';
   const facts=document.querySelectorAll('.menu-facts b');facts[0].textContent=mode==='race'?'03':'∞';facts[1].textContent=String(total).padStart(2,'0');
   $('mode-button').innerHTML=(mode==='race'?'GRAND PRIX':mode==='time'?'TIME TRIAL':'FREE DRIVE')+' <span>⌄</span>';
@@ -72,7 +73,7 @@ function resetGrid(){
 }
 
 function startRace(){
-  resetGrid();keys.clear();document.body.classList.add('racing');$('menu-card').hidden=true;
+  resetGrid();keys.clear();document.body.classList.add('racing');document.body.classList.remove('on-title');$('menu-card').hidden=true;
   state='countdown';countdown=0;$('start-lights').hidden=false;$('session-tag').innerHTML='<i></i> FORMATION COMPLETE';
   [...$('start-lights').querySelectorAll('i')].forEach(l=>l.classList.remove('lit'));
   canvas.focus({preventScroll:true});if(audio.enabled)audio.start();
@@ -165,7 +166,7 @@ function updateModels(dt){
     car.mesh.userData.wheels.forEach((wheel,i)=>{wheel.rotation.x+=car.speed*dt/.47;if(i%2===1)wheel.rotation.y=-car.steer*.2});
     car.mesh.userData.rearLight.visible=car.brake>.1||Math.floor(performance.now()/350)%2===0;
     car.mesh.userData.helmet.visible=car.mesh.userData.visor.visible=!car.isPlayer||camMode!==1;
-    car.mesh.visible=car.recovered<=0||Math.floor(performance.now()/120)%2===0;
+    car.mesh.visible=state==='menu'?car.isPlayer:car.recovered<=0||Math.floor(performance.now()/120)%2===0;
   }
 }
 function updateCamera(dt,snap=false){
@@ -180,6 +181,13 @@ function updateCamera(dt,snap=false){
   }
   camera.near=.2;camera.far=6500;scene.fog.near=1500;scene.fog.far=4200;
   Object.assign(sun.shadow.camera,{left:-90,right:90,top:90,bottom:-90,far:1200});sun.shadow.camera.updateProjectionMatrix();
+  if(state==='menu'){
+    if(!reducedMenuMotion.matches)menuTime+=dt;
+    const drift=Math.sin(menuTime*.12)*1.2,narrow=camera.aspect<1;
+    camera.position.set(player.x-fx*(12+drift)-fz*11,4.5,player.z-fz*(12+drift)+fx*11);
+    camera.lookAt(player.x+fz*(narrow?1:6),.65,player.z-fx*(narrow?1:6));camera.fov=narrow?55:44;camera.updateProjectionMatrix();
+    sun.position.set(player.x+480,220,player.z+400);sun.target.position.set(player.x,0,player.z);world.sky.position.copy(camera.position);return;
+  }
   if(camMode===0){cameraTarget.set(player.x-fx*18-fz*9+player.vx*.15,12.5,player.z-fz*18+fx*9+player.vz*.15);cameraLook.set(player.x+fx*26+fz*15,0,player.z+fz*26-fx*15)}
   else if(camMode===1){cameraTarget.set(player.x+fx*.85,1.48,player.z+fz*.85);cameraLook.set(player.x+fx*60,1.4,player.z+fz*60)}
   else{cameraTarget.set(player.x-fx*10+player.vx*.15,5.6,player.z-fz*10+player.vz*.15);cameraLook.set(player.x+fx*16,.8,player.z+fz*16)}
@@ -243,6 +251,7 @@ function togglePause(){
 }
 function openDialog(id){
   if(document.querySelector('dialog[open]'))return;
+  if(id==='leaderboard-dialog')$('board-personal-best').textContent=personalBest>0?formatTime(personalBest):'--:--.---';
   dialogReturn=state;if(state==='racing'||state==='countdown')state='paused';keys.clear();$(id).showModal();
 }
 for(const dialog of document.querySelectorAll('dialog')){
@@ -257,6 +266,9 @@ $('setup-button').addEventListener('click',()=>openDialog('settings-dialog'));
 $('mode-button').addEventListener('click',()=>{$('mode-select').focus();openDialog('settings-dialog')});
 $('garage-nav').addEventListener('click',()=>openDialog('garage-dialog'));
 $('garage-menu').addEventListener('click',()=>openDialog('garage-dialog'));
+$('leaderboard-menu').addEventListener('click',()=>openDialog('leaderboard-dialog'));
+$('title-help').addEventListener('click',()=>openDialog('guide-dialog'));
+$('board-practice').addEventListener('click',()=>{$('leaderboard-dialog').close();$('mode-select').value='time';startRace()});
 for(const [id,label,dialog] of [['garage-shortcut','GARAGE','garage-dialog'],['setup-shortcut','SETUP','settings-dialog'],['help-shortcut','HELP','guide-dialog']]){const b=document.createElement('button');b.id=id;b.className='glass-icon';b.textContent=label;b.setAttribute('aria-label','Open '+label.toLowerCase());b.addEventListener('click',()=>openDialog(dialog));document.querySelector('.session-actions').appendChild(b)}
 $('guide-nav').addEventListener('click',()=>openDialog('guide-dialog'));
 $('race-nav').addEventListener('click',()=>{document.querySelector('dialog[open]')?.close();if(state==='paused')togglePause();canvas.focus({preventScroll:true})});
@@ -276,6 +288,8 @@ document.querySelectorAll('[data-color]').forEach(b=>{if(b.dataset.color===selec
 window.addEventListener('keydown',e=>{
   if(e.target instanceof HTMLSelectElement||e.target instanceof HTMLInputElement)return;
   if(document.querySelector('dialog[open]')){if((e.code==='Escape'||e.code==='KeyP')&&$('pause-dialog').open){e.preventDefault();togglePause()}return}
+  if(state==='menu'&&(e.code==='ArrowDown'||e.code==='ArrowUp')){e.preventDefault();const buttons=[...document.querySelectorAll('.title-nav button')],index=buttons.indexOf(document.activeElement),direction=e.code==='ArrowDown'?1:-1;buttons[index<0?(direction>0?0:buttons.length-1):wrap(index+direction,buttons.length)].focus();return}
+  if(state==='menu'&&(e.code==='Enter'||e.code==='Space')&&e.target instanceof HTMLButtonElement)return;
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Escape'].includes(e.code))e.preventDefault();
   keys.add(e.code);if(e.repeat)return;
   if(e.code==='KeyB'){toggleOverview();return}
