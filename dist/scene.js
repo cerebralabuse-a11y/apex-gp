@@ -56,7 +56,8 @@ export function buildCar(color, number = 27) {
   noseShape.setIndex([0,2,3,0,3,1,4,5,7,4,7,6,0,1,5,0,5,4,2,6,7,2,7,3,0,4,6,0,6,2,1,3,7,1,7,5]);noseShape.computeVertexNormals();
   const nose = new THREE.Mesh(noseShape, lime); nose.castShadow = true; root.add(nose);
   const stripeColors=['#ed574e','#f2a338','#efd936','#72c53b','#20b9b4','#6d5bbc'];
-  stripeColors.forEach((c,i)=>box(root,.185,.035,2.55,mat(c),-.46+i*.185,.612,-.22));
+  const stripeTexture=canvasTexture(192,64,c=>stripeColors.forEach((color,i)=>{c.fillStyle=color;c.fillRect(i*32,0,32,64)}));
+  const stripes=new THREE.Mesh(new THREE.PlaneGeometry(1.11,2.55),new THREE.MeshStandardMaterial({map:stripeTexture,roughness:.95}));stripes.rotation.x=-Math.PI/2;stripes.position.set(0,.64,-.22);root.add(stripes);
   const cockpit = new THREE.Mesh(new THREE.SphereGeometry(.5, 16, 10), carbon); cockpit.scale.set(.76,.36,1.35);cockpit.position.set(0,.7,-.15);root.add(cockpit);
   const cover = new THREE.Mesh(new THREE.ConeGeometry(.47,1.45,8),paint);cover.rotation.x=-Math.PI/2;cover.scale.z=.7;cover.position.set(0,.73,-1.12);cover.castShadow=true;root.add(cover);
   box(root,.045,.6,1.2,paint,0,.91,-1.19);
@@ -76,10 +77,10 @@ export function buildCar(color, number = 27) {
   box(root,1.3,.18,.5,carbon,0,.2,-1.94);
   const rearLight=box(root,.15,.1,.03,new THREE.MeshBasicMaterial({color:'#ff3b20'}),0,.44,-2.22);
   const numberTexture=canvasTexture(128,128,c=>{c.clearRect(0,0,128,128);c.fillStyle='#f8f4df';c.font='italic 900 85px Arial';c.textAlign='center';c.fillText(String(number),64,98)});
-  const numberPlate=new THREE.Mesh(new THREE.PlaneGeometry(.47,.55),new THREE.MeshBasicMaterial({map:numberTexture,transparent:true}));numberPlate.rotation.x=-Math.PI/2;numberPlate.position.set(0,.625,.6);root.add(numberPlate);
+  const numberPlate=new THREE.Mesh(new THREE.PlaneGeometry(.47,.55),new THREE.MeshBasicMaterial({map:numberTexture,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1}));numberPlate.rotation.x=-Math.PI/2;numberPlate.position.set(0,.66,.6);root.add(numberPlate);
   const wheels=[];
   for(const x of [-1.04,1.04]) for(const z of [-1.36,1.36]){
-    const wheel=new THREE.Group();wheel.position.set(x,.47,z);root.add(wheel);wheels.push(wheel);
+    const wheel=new THREE.Group();wheel.rotation.order='YXZ';wheel.position.set(x,.47,z);root.add(wheel);wheels.push(wheel);
     const tire=new THREE.Mesh(new THREE.CylinderGeometry(.47,.47,.37,12),rubber);tire.rotation.z=Math.PI/2;tire.castShadow=true;wheel.add(tire);
     for(const side of [-1,1]){
       const ring=new THREE.Mesh(new THREE.TorusGeometry(.355,.018,5,24),mat('#ddd247'));ring.rotation.y=Math.PI/2;ring.position.x=side*.191;wheel.add(ring);
@@ -106,3 +107,11 @@ export function disposeCar(root) {
 
 export { createCircuit } from './track.js';
 export { createLakesideWorld as createWorld } from './lakeside.js';
+
+export function drivingCameraTargets(car,mode,aspect,target,look){
+  const fx=Math.sin(car.yaw),fz=Math.cos(car.yaw),lead=Math.min(car.speed*.025,1.5),fit=Math.max(1,Math.min(1.7,1/aspect));
+  if(mode===0){const ahead=aspect<1?8:14,side=aspect<1?0:6;target.set(car.x-fx*(22*fit-lead)-fz*9*fit,13*fit,car.z-fz*(22*fit-lead)+fx*9*fit);look.set(car.x+fx*ahead+fz*side,0,car.z+fz*ahead-fx*side)}
+  else if(mode===1){target.set(car.x+fx*.85,1.48,car.z+fz*.85);look.set(car.x+fx*60,1.4,car.z+fz*60)}
+  else{target.set(car.x-fx*(12*fit-lead),6.5*fit,car.z-fz*(12*fit-lead));look.set(car.x+fx*8,1.1,car.z+fz*8)}
+  return(mode===1?68:mode===2?60:50)+car.speed*.025+(car.boost?2:0);
+}

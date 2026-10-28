@@ -1,4 +1,5 @@
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+export const CAR_HALF_WIDTH=1.76,CAR_HALF_LENGTH=3.2;
 export const wrap = (v, n) => ((v % n) + n) % n;
 export const angleDelta = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 export function formatTime(seconds) {
@@ -76,12 +77,21 @@ export function stepVehicle(car, input, dt, halfWidth = 9) {
 }
 
 export function resolveTrackWall(car, track) {
-  if (!track.wallOffset || car.road.distance <= track.wallOffset) return false;
-  const p=sampleTrack(track,car.road.s,Math.sign(car.road.offset)*(track.wallOffset-.25));
-  const along=(car.vx*p.tx+car.vz*p.tz)*.65;
-  car.x=p.x;car.z=p.z;car.vx=p.tx*along;car.vz=p.tz*along;car.speed=Math.abs(along);
-  car.road=nearestTrack(track,car.x,car.z,car.road.index);
-  return true;
+  if(!track.wallOffset||car.road.distance<5.8)return false;
+  const inside=9.825-.08,fx=Math.sin(car.yaw),fz=Math.cos(car.yaw);
+  let contact=false;
+  // Check the rotated car, including its wings, against the curved boundary.
+  for(let pass=0;pass<4;pass++){
+    let excess=0,worst;
+    for(const side of [-1,1])for(const end of [-1,1]){
+      const x=car.x+fz*side*CAR_HALF_WIDTH+fx*end*CAR_HALF_LENGTH,z=car.z-fx*side*CAR_HALF_WIDTH+fz*end*CAR_HALF_LENGTH,road=nearestTrack(track,x,z,car.road.index);
+      if(road.distance-inside>excess){excess=road.distance-inside;worst=road}
+    }
+    if(!worst)break;
+    const side=Math.sign(worst.offset);car.x+=worst.tz*side*(excess+.015);car.z-=worst.tx*side*(excess+.015);contact=true;
+  }
+  if(contact){car.road=nearestTrack(track,car.x,car.z,car.road.index);const along=(car.vx*car.road.tx+car.vz*car.road.tz)*.65;car.vx=car.road.tx*along;car.vz=car.road.tz*along;car.speed=Math.abs(along)}
+  return contact;
 }
 
 export function updateProgress(car, track, raceTime, dt) {

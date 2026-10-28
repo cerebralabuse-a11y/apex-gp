@@ -34,3 +34,12 @@ The first image supplies the architectural vocabulary and relative districts. Th
 ## Remaining polish
 
 Individual buildings, tree placements and the illustrative composition can be refined further if more detailed landmark references are supplied. This does not block the playable map or its visual inspection.
+
+## Approved circuit and car visibility repairs — 28 October 2026
+
+- All seven trial-lap findings addressed: academy platform/perimeter clearance, rotated-car barrier contact, high-speed camera framing, background road layering, continuous rail/concrete/kerb bands, constant-width shoreline, and recovery/photo visibility.
+- Additional flicker sources addressed: front-wheel spin/steering rotation order, overlapping body stripe/decal layers, and continuously sliding shadow-map texels. Recovery no longer hides the car; its existing collision grace period remains.
+- Fourteen tests pass, including a whole-circuit scenery sweep, the actual steered/rolled car footprint, camera projection through 326 km/h at landscape and portrait aspect ratios, all fourteen corners, and the original eight-car three-lap race.
+- A temporary browser inspection scene using the production world, car, camera targets and physics completed a full AI-driven test lap in 84.13 simulation seconds. It was removed before packaging.
+- Normal game verified by keyboard: acceleration to 151 km/h in Chase Cam with the full car visible, recovery followed by photo mode, and five successive photo captures with the car remaining visible. Browser console reported no errors.
+- Race trace, circuit length, landmark positions including the blue glass complex, lighting palette, input bindings, power, grip and ERS tuning retained. Only boundary contact and visual presentation changed.

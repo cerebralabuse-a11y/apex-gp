@@ -2,6 +2,7 @@ import * as THREE from './vendor/three.module.js';
 import { createCircuit, mapToWorld, lakeOutlines } from './track.js';
 import { buildNaviMumbai } from './city.js';
 import { sampleTrack, nearestTrack } from './physics.js';
+import {offsetContour,trackBand} from './map-geometry.js';
 
 export function createLakesideWorld(canvas) {
   let seed=73643;
@@ -15,6 +16,12 @@ export function createLakesideWorld(canvas) {
   const camera=new THREE.PerspectiveCamera(50,1,.2,6500);
   const ambient=new THREE.HemisphereLight('#ffe5c5','#ada48d',1.9);scene.add(ambient,new THREE.AmbientLight('#b9c1e3',1));
   const sun=new THREE.DirectionalLight('#ffd3a1',2.65);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-90,right:90,top:90,bottom:-90,near:1,far:1200});sun.shadow.bias=-.00012;sun.shadow.normalBias=.025;sun.position.set(300,230,300);scene.add(sun,sun.target);
+  const sunOffset=new THREE.Vector3(480,220,400),shadowRight=new THREE.Vector3(400,0,-480).normalize(),shadowUp=new THREE.Vector3().crossVectors(sunOffset.clone().normalize(),shadowRight).normalize(),shadowTarget=new THREE.Vector3();
+  function followSun(x,z){
+    const texel=180/sun.shadow.mapSize.x;shadowTarget.set(x,0,z);
+    for(const axis of [shadowRight,shadowUp]){const value=shadowTarget.dot(axis);shadowTarget.addScaledVector(axis,Math.round(value/texel)*texel-value)}
+    sun.target.position.copy(shadowTarget);sun.position.copy(shadowTarget).add(sunOffset);
+  }
   const skyMaterial=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,toneMapped:false,uniforms:{top:{value:new THREE.Color('#cd7e85')},bottom:{value:new THREE.Color('#ffb18b')}},vertexShader:'varying vec3 vPosition; void main(){vPosition=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:`uniform vec3 top;uniform vec3 bottom;varying vec3 vPosition;
     void main(){float h=normalize(vPosition).y;gl_FragColor=vec4(mix(bottom,top,smoothstep(-.04,.52,h)),1.);
     #include <tonemapping_fragment>
@@ -43,7 +50,7 @@ export function createLakesideWorld(canvas) {
 
   const lakes=lakeOutlines.map(outline=>{
     const control=outline.map(([u,v])=>{const p=mapToWorld(u,v);return new THREE.Vector3(p.x,0,p.z)});
-    return new THREE.CatmullRomCurve3(control,true,'centripetal').getPoints(200).map(p=>({x:p.x,z:p.z}));
+    return new THREE.CatmullRomCurve3(control,true,'centripetal').getPoints(200).slice(0,-1).map(p=>({x:p.x,z:p.z}));
   });
   const lakeBoundary=lakes[0];
   function insideLake(x,z,margin=0){return lakes.some(poly=>{
@@ -69,17 +76,18 @@ export function createLakesideWorld(canvas) {
     #include <colorspace_fragment>
     }`});
   for(const poly of lakes){
-    const center=poly.reduce((a,p)=>({x:a.x+p.x/poly.length,z:a.z+p.z/poly.length}),{x:0,z:0});
-    const shore=poly.map(p=>({x:center.x+(p.x-center.x)*1.035,z:center.z+(p.z-center.z)*1.035}));
-    const bankShape=polygonShape(shore);bankShape.holes.push(new THREE.Path(polygonShape(poly).getPoints()));
-    const bank=new THREE.Mesh(new THREE.ShapeGeometry(bankShape),material('#d6c79b'));bank.rotation.x=-Math.PI/2;bank.position.y=-.055;bank.receiveShadow=true;scene.add(bank);
+    const shore=offsetContour(poly,4),positions=[],indices=[];
+    for(let i=0;i<poly.length;i++){for(const p of [poly[i],shore[i]])positions.push(p.x,-.055,p.z);const a=i*2,b=((i+1)%poly.length)*2;indices.push(a,b,a+1,a+1,b,b+1)}
+    const bankGeometry=new THREE.BufferGeometry();bankGeometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));bankGeometry.setIndex(indices);bankGeometry.computeVertexNormals();
+    const bankMaterial=material('#d6c79b').clone();bankMaterial.side=THREE.DoubleSide;
+    const bank=new THREE.Mesh(bankGeometry,bankMaterial);bank.receiveShadow=true;scene.add(bank);
     const lake=new THREE.Mesh(new THREE.ShapeGeometry(polygonShape(poly)),lakeMaterial);lake.rotation.x=-Math.PI/2;lake.position.y=-.2;scene.add(lake);
   }
 
   // Alternating kerbs, lane markings, grid boxes and a real start/finish line.
   const dummyCurb=new THREE.Object3D(),curbCount=Math.ceil(length/3);
-  const curbs=new THREE.InstancedMesh(new THREE.BoxGeometry(1,.12,3.08),material('#ffffff'),curbCount*2);
-  for(let i=0;i<curbCount;i++)for(const side of [-1,1]){const p=sampleTrack(track,i*length/curbCount,side*9.65),k=i*2+(side>0?1:0);dummyCurb.position.set(p.x,.13,p.z);dummyCurb.rotation.y=p.yaw;dummyCurb.updateMatrix();curbs.setMatrixAt(k,dummyCurb.matrix);curbs.setColorAt(k,new THREE.Color(i%2?'#f4e9ce':'#c9483d'))}curbs.receiveShadow=true;scene.add(curbs);
+  const curbMaterial=material('#ffffff').clone();curbMaterial.vertexColors=true;
+  for(const side of [-1,1])scene.add(trackBand(track,side*9.65-.5,side*9.65+.5,.07,.19,curbMaterial,curbCount,['#c9483d','#f4e9ce']));
   const dashes=new THREE.InstancedMesh(new THREE.BoxGeometry(.18,.015,4),cream,Math.floor(length/13));
   for(let i=0;i<dashes.count;i++){const p=sampleTrack(track,i*13);dummyCurb.position.set(p.x,.03,p.z);dummyCurb.rotation.y=p.yaw;dummyCurb.updateMatrix();dashes.setMatrixAt(i,dummyCurb.matrix)}scene.add(dashes);
   const startLine=new THREE.Group();for(let i=0;i<18;i++)for(let j=0;j<2;j++)box(startLine,1,.018,1,material((i+j)%2?'#36343b':'#f3e7cb'),i-8.5,.04,j-.5);place(startLine,track.start);
@@ -91,22 +99,14 @@ export function createLakesideWorld(canvas) {
   }
 
   // Real rail geometry casts the long lattice shadows visible in the reference.
-  function railingGeometry(){
-    const positions=[],normals=[];
-    const add=(w,h,d,x,y,z)=>{
-      const g=new THREE.BoxGeometry(w,h,d).toNonIndexed();g.translate(x,y,z);positions.push(...g.attributes.position.array);normals.push(...g.attributes.normal.array);g.dispose();
-    };
-    add(.13,1.9,.13,0,1.52,-2);add(.13,1.9,.13,0,1.52,2);
-    for(const y of [.8,1.15,1.5,1.85,2.2])add(.07,.055,4,0,y,0);
-    for(let z=-1.5;z<2;z+=.5)add(.05,1.4,.045,0,1.5,z);
-    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));return g;
+  const railCount=Math.ceil(length/.5),postCount=Math.ceil(length/4),rails=new THREE.InstancedMesh(new THREE.BoxGeometry(.05,1.4,.045),rail,railCount*2),posts=new THREE.InstancedMesh(new THREE.BoxGeometry(.13,1.9,.13),rail,postCount*2),dummy=new THREE.Object3D();
+  for(const side of [-1,1]){
+    const offset=side*10.15;scene.add(trackBand(track,offset-.325,offset+.325,-.005,.645,wall));
+    for(const y of [.8,1.15,1.5,1.85,2.2])scene.add(trackBand(track,offset-.035,offset+.035,y-.0275,y+.0275,rail));
+    for(let i=0;i<railCount;i++){const p=sampleTrack(track,i*length/railCount,offset);dummy.position.set(p.x,1.5,p.z);dummy.rotation.set(0,p.yaw,0);dummy.updateMatrix();rails.setMatrixAt(i*2+(side>0?1:0),dummy.matrix)}
+    for(let i=0;i<postCount;i++){const p=sampleTrack(track,i*length/postCount,offset);dummy.position.set(p.x,1.52,p.z);dummy.rotation.set(0,p.yaw,0);dummy.updateMatrix();posts.setMatrixAt(i*2+(side>0?1:0),dummy.matrix)}
   }
-  const railCount=Math.floor(length/4),rails=new THREE.InstancedMesh(railingGeometry(),rail,railCount*2),bases=new THREE.InstancedMesh(new THREE.BoxGeometry(.65,.65,4.1),wall,railCount*2),dummy=new THREE.Object3D();
-  let k=0;
-  for(let i=0;i<railCount;i++)for(const side of [-1,1]){
-    const p=sampleTrack(track,i*length/railCount,side*10.15);dummy.position.set(p.x,0,p.z);dummy.rotation.set(0,p.yaw,0);dummy.updateMatrix();rails.setMatrixAt(k,dummy.matrix);dummy.position.y=.32;dummy.updateMatrix();bases.setMatrixAt(k++,dummy.matrix);
-  }
-  rails.castShadow=bases.castShadow=true;rails.receiveShadow=bases.receiveShadow=true;scene.add(rails,bases);
+  rails.castShadow=posts.castShadow=true;rails.receiveShadow=posts.receiveShadow=true;scene.add(rails,posts);
   const racingLine=new THREE.InstancedMesh(new THREE.BoxGeometry(.18,.015,2.2),new THREE.MeshBasicMaterial({color:'#aadc69',transparent:true,opacity:.55}),Math.floor(length/7));
   for(let i=0;i<racingLine.count;i++){const p=sampleTrack(track,i*7);dummy.position.set(p.x,.025,p.z);dummy.rotation.set(0,p.yaw,0);dummy.updateMatrix();racingLine.setMatrixAt(i,dummy.matrix)}racingLine.visible=false;scene.add(racingLine);
 
@@ -225,5 +225,5 @@ export function createLakesideWorld(canvas) {
     skyMaterial.uniforms.top.value.set(s[0]);skyMaterial.uniforms.bottom.value.set(s[1]);sun.color.set(s[2]);sun.intensity=s[3];ambient.intensity=s[4];scene.fog.color.set(s[5]);sunDisc.visible=mode!=='day';
   }
   function setQuality(high){renderer.setPixelRatio(Math.min(devicePixelRatio,high?2:1));renderer.shadowMap.enabled=high}
-  return {THREE,renderer,scene,camera,track,sun,sky,racingLine,lamps,lakeBoundary,lakes,landmarks:city.labels,setLighting,setQuality,update};
+  return {THREE,renderer,scene,camera,track,sun,sky,racingLine,lamps,lakeBoundary,lakes,landmarks:city.labels,setLighting,setQuality,followSun,update};
 }

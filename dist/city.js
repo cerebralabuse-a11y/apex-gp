@@ -1,5 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import { mapToWorld, MAP_SCALE } from './track.js';
+import {nearestTrack,sampleTrack} from './physics.js';
+import {clipPolygon} from './map-geometry.js';
 
 // All placements share the circuit reference's map coordinate system.
 export function buildNaviMumbai(scene,track){
@@ -20,8 +22,9 @@ export function buildNaviMumbai(scene,track){
   function road(coords,width=8,walking=false){
     for(let i=1;i<coords.length;i++){
       const a=mapToWorld(...coords[i-1]),b=mapToWorld(...coords[i]),d=Math.hypot(b.x-a.x,b.z-a.z),g=new THREE.Group();g.position.set((a.x+b.x)/2,0,(a.z+b.z)/2);g.rotation.y=Math.atan2(b.x-a.x,b.z-a.z);cityRoot.add(g);
-      box(g,width+5,.16,d+3,sand,0,-.06,0);box(g,width,.12,d+1,walking?m('#d4b890'):m('#666160'),0,.05,0);
-      if(!walking)for(let z=-d/2+5;z<d/2;z+=13)box(g,.22,.015,5,cream,0,.12,z);
+      // Background streets stay above terrain but below the racing asphalt.
+      box(g,width+5,.1,d+3,sand,0,-.105,0);box(g,width,.02,d+1,walking?m('#d4b890'):m('#666160'),0,-.05,0);
+      if(!walking)for(let z=-d/2+5;z<d/2;z+=13)box(g,.22,.005,5,cream,0,-.0325,z);
     }
   }
   road([[105,251],[174,232],[267,235],[363,248],[377,287]]);
@@ -71,7 +74,16 @@ export function buildNaviMumbai(scene,track){
   }
   label('PALM BEACH BUSINESS DISTRICT',421,434,88);
   // Sports academy with a blue-roofed pavilion, running oval and tennis courts.
-  const sports=group(354,469,-.65);box(sports,102,.8,80,sand,0,.4);box(sports,94,.1,72,m('#769a49'),0,.86);
+  const sports=group(354,469,-.65);sports.scale.setScalar(1.25);sports.updateMatrixWorld(true);
+  const sportsRoad=nearestTrack(track,sports.position.x,sports.position.z),edge=sampleTrack(track,sportsRoad.s,13),normal=new THREE.Vector3(-edge.tz,0,edge.tx);
+  const sportsDistance=p=>{const v=sports.localToWorld(new THREE.Vector3(p.x,0,p.z));return(v.x-edge.x)*normal.x+(v.z-edge.z)*normal.z};
+  const sportsOutline=(w,d)=>clipPolygon([{x:-w/2,z:-d/2},{x:w/2,z:-d/2},{x:w/2,z:d/2},{x:-w/2,z:d/2}],sportsDistance);
+  function sportsSurface(w,d,height,depth,mat){
+    const points=sportsOutline(w,d),shape=new THREE.Shape(points.map(p=>new THREE.Vector2(p.x,-p.z)));
+    const geometry=depth?new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:false}):new THREE.ShapeGeometry(shape);
+    const mesh=new THREE.Mesh(geometry,mat);mesh.rotation.x=-Math.PI/2;mesh.position.y=height;mesh.castShadow=mesh.receiveShadow=true;sports.add(mesh);
+  }
+  sportsSurface(102,80,0,.8,sand);sportsSurface(94,72,.91,0,m('#769a49'));
   const academy=new THREE.Group();sports.add(academy);box(academy,63,12,16,cream,0,7,-26);box(academy,66,1.5,19,blue,0,13.8,-26);
   for(let x=-27;x<=27;x+=6){box(academy,2.4,5,.15,glass,x,7,-17.9);box(academy,2.4,4,.15,glass,x,8,-34.1);box(academy,.8,11,1,roof,x,6.5,-17.5)}
   text(academy,'NAVI MUMBAI SPORTS ACADEMY',52,3,0,12,-17.8);
@@ -86,7 +98,8 @@ export function buildNaviMumbai(scene,track){
     for(const dz of [-9,0,9])box(sports,26,.04,.18,cream,30,1.07,z+dz);
     box(sports,.1,1,20,cream,30,1.6,z);
   }
-  for(const x of [-50,50])box(sports,.6,3,80,roof,x,2,0);for(const z of [-40,40])box(sports,100,3,.6,roof,0,2,z);
+  const sportsFence=sportsOutline(100,80);
+  sportsFence.forEach((a,i)=>{const b=sportsFence[(i+1)%sportsFence.length],wall=box(sports,.6,3,Math.hypot(b.x-a.x,b.z-a.z),roof,(a.x+b.x)/2,2,(a.z+b.z)/2);wall.rotation.y=Math.atan2(b.x-a.x,b.z-a.z)});
   label('SPORTS ACADEMY',354,469,25);
   // Karave gateway on the southern approach, deliberately outside the racing envelope.
   const gate=group(276,495,-.15);for(const x of [-13,13])box(gate,5,12,6,cream,x,6);box(gate,33,5,8,cream,0,14.5);box(gate,35,1.2,10,sand,0,17.5);text(gate,'KARAVE',25,3,0,14.5,4.1,'#604c3a','#efd6a5');label('KARAVE',276,495,23);

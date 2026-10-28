@@ -1,4 +1,4 @@
-import { createWorld, buildCar, disposeCar } from './scene.js';
+import { createWorld, buildCar, disposeCar, drivingCameraTargets } from './scene.js';
 import { createArcadeHUD } from './arcade-hud.js';
 import { clamp, wrap, formatTime, sampleTrack, nearestTrack, createVehicle, stepVehicle, resolveTrackWall, updateProgress, collideVehicles, getAIControls } from './physics.js';
 
@@ -162,11 +162,11 @@ function finishRace(){
 
 function updateModels(dt){
   for(const car of cars){
-    car.mesh.position.set(car.x,.035+((car.road.distance>9&&car.speed>5)?Math.sin(performance.now()*.07)*.025:0),car.z);car.mesh.rotation.set(0,car.yaw,clamp(car.steer*car.speed*.0007,-.05,.05));
-    car.mesh.userData.wheels.forEach((wheel,i)=>{wheel.rotation.x+=car.speed*dt/.47;if(i%2===1)wheel.rotation.y=-car.steer*.2});
-    car.mesh.userData.rearLight.visible=car.brake>.1||Math.floor(performance.now()/350)%2===0;
+    car.mesh.position.set(car.x,.035+((car.road.distance>9&&car.speed>5)?Math.sin(raceTime*70)*.025:0),car.z);car.mesh.rotation.set(0,car.yaw,clamp(car.steer*car.speed*.0007,-.05,.05));
+    car.mesh.userData.wheels.forEach((wheel,i)=>{wheel.rotation.x=(wheel.rotation.x+car.speed*dt/.47)%(Math.PI*2);if(i%2===1)wheel.rotation.y=-car.steer*.2});
+    car.mesh.userData.rearLight.visible=car.brake>.1||Math.floor(raceTime/.35)%2===0;
     car.mesh.userData.helmet.visible=car.mesh.userData.visor.visible=!car.isPlayer||camMode!==1;
-    car.mesh.visible=state==='menu'?car.isPlayer:car.recovered<=0||Math.floor(performance.now()/120)%2===0;
+    car.mesh.visible=state!=='menu'||car.isPlayer;
   }
 }
 function updateCamera(dt,snap=false){
@@ -179,21 +179,19 @@ function updateCamera(dt,snap=false){
     sun.position.set(400,650,400);sun.target.position.set(40,0,20);Object.assign(sun.shadow.camera,{left:-950,right:950,top:850,bottom:-850,far:2400});sun.shadow.camera.updateProjectionMatrix();
     updateOverviewLabels();return;
   }
-  camera.near=.2;camera.far=6500;scene.fog.near=1500;scene.fog.far=4200;
+  camera.near=camMode===1?.2:.5;camera.far=6500;scene.fog.near=1500;scene.fog.far=4200;
   Object.assign(sun.shadow.camera,{left:-90,right:90,top:90,bottom:-90,far:1200});sun.shadow.camera.updateProjectionMatrix();
   if(state==='menu'){
     if(!reducedMenuMotion.matches)menuTime+=dt;
     const drift=Math.sin(menuTime*.12)*1.2,narrow=camera.aspect<1;
     camera.position.set(player.x-fx*(12+drift)-fz*11,4.5,player.z-fz*(12+drift)+fx*11);
     camera.lookAt(player.x+fz*(narrow?1:6),.65,player.z-fx*(narrow?1:6));camera.fov=narrow?55:44;camera.updateProjectionMatrix();
-    sun.position.set(player.x+480,220,player.z+400);sun.target.position.set(player.x,0,player.z);world.sky.position.copy(camera.position);return;
+    world.followSun(player.x,player.z);world.sky.position.copy(camera.position);return;
   }
-  if(camMode===0){cameraTarget.set(player.x-fx*18-fz*9+player.vx*.15,12.5,player.z-fz*18+fx*9+player.vz*.15);cameraLook.set(player.x+fx*26+fz*15,0,player.z+fz*26-fx*15)}
-  else if(camMode===1){cameraTarget.set(player.x+fx*.85,1.48,player.z+fz*.85);cameraLook.set(player.x+fx*60,1.4,player.z+fz*60)}
-  else{cameraTarget.set(player.x-fx*10+player.vx*.15,5.6,player.z-fz*10+player.vz*.15);cameraLook.set(player.x+fx*16,.8,player.z+fz*16)}
+  const fov=drivingCameraTargets(player,camMode,camera.aspect,cameraTarget,cameraLook);
   const rate=snap||camMode===1?1:1-Math.exp(-dt*6.5);camera.position.lerp(cameraTarget,rate);smoothLook.lerp(cameraLook,snap?1:1-Math.exp(-dt*10));camera.lookAt(smoothLook);
-  const fov=(camMode===1?68:camMode===2?57:50)+speed*.025+(player.boost?2:0);camera.fov+=(fov-camera.fov)*(snap?1:1-Math.exp(-dt*3));camera.updateProjectionMatrix();
-  sun.position.set(player.x+480,220,player.z+400);sun.target.position.set(player.x,0,player.z);
+  camera.fov+=(fov-camera.fov)*(snap?1:1-Math.exp(-dt*3));camera.updateProjectionMatrix();
+  world.followSun(player.x,player.z);
   world.sky.position.copy(camera.position);
 }
 function drawMap(){
