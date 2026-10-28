@@ -46,7 +46,7 @@ export function buildCar(color, number = 27) {
   for (const side of [-1, 1]) {
     const pod = box(root, .44, .43, 1.65, side<0?purple:cyan, side * .65, .52, -.55); pod.rotation.z = side * -.07;
     box(root, .45, .06, 1.4, accent, side * .67, .76, -.65);
-    box(root, .35, .14, .7, carbon, side * .67, .72, -.9);
+    box(root, .35, .14, .7, carbon, side * .67, .75, -.9);
     box(root, .16, .08, .31, paint, side * .75, .87, .4);
     cylinderBetween(root, new THREE.Vector3(side * .45, .73, .2), new THREE.Vector3(side * .74, .86, .4), .025, carbon);
   }

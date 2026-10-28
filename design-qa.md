@@ -43,3 +43,10 @@ Individual buildings, tree placements and the illustrative composition can be re
 - A temporary browser inspection scene using the production world, car, camera targets and physics completed a full AI-driven test lap in 84.13 simulation seconds. It was removed before packaging.
 - Normal game verified by keyboard: acceleration to 151 km/h in Chase Cam with the full car visible, recovery followed by photo mode, and five successive photo captures with the car remaining visible. Browser console reported no errors.
 - Race trace, circuit length, landmark positions including the blue glass complex, lighting palette, input bindings, power, grip and ERS tuning retained. Only boundary contact and visual presentation changed.
+
+## Recording follow-up — sidepod flicker
+
+- Decoded the user's 7.27-second recording into 218 frames. The black sidepod vents intermittently disappear into the yellow strips; this is separate from recovery visibility and wheel animation.
+- Both box top faces were at model height .79. Raised the vent by .03 so its top is .82, leaving actual geometry separation on both sides and on every car.
+- Added a ray-based regression check at three positions per side. It failed against the previous model and passes with the repair. All fifteen tests pass.
+- Captured 49 moving Chase frames and a second moving Arcade sequence in the normal game, including 214 km/h in Chase and 154 km/h in Arcade. No disappearing vent patches observed. Controls, circuit and handling are unchanged.

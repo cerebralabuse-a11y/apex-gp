@@ -11,6 +11,18 @@ import {offsetContour,trackBand} from '../dist/map-geometry.js';
 globalThis.document={createElement(){return{width:0,height:0,getContext(){return{fillRect(){},clearRect(){},fillText(){}}}}}};
 const track=createCircuit();
 
+test('sidepod vents stay above the yellow trim instead of sharing its depth',()=>{
+  const car=buildCar('#a2cf3e');car.updateMatrixWorld(true);
+  const ray=new THREE.Raycaster();
+  for(const side of [-1,1])for(const z of [-1.12,-.89,-.61]){
+    ray.set(new THREE.Vector3(side*.66*1.3,4,z*1.3),new THREE.Vector3(0,-1,0));
+    const hits=ray.intersectObject(car,true).filter(h=>!h.object.material.transparent);
+    assert.ok(hits.length>=2,'both the raised vent and its underlying trim are present');
+    assert.ok(hits[1].distance-hits[0].distance>.02,'visible vent and trim faces have real separation at every sample');
+  }
+  disposeCar(car);
+});
+
 test('scenery platforms and road trims do not cover the racing corridor',()=>{
   const scene=new THREE.Scene();buildNaviMumbai(scene,track);scene.updateMatrixWorld(true);
   const ray=new THREE.Raycaster(),blocked=[];
