@@ -206,7 +206,6 @@ function updateUI(){
   $('speed').textContent=String(Math.round(player.speed*3.6)).padStart(3,'0');$('gear').textContent=gear.gear;
   $('throttle-meter').style.height=player.throttle*100+'%';$('brake-meter').style.height=player.brake*100+'%';
   $('ers-value').textContent=Math.round(player.energy)+'%';$('ers-bar').style.width=player.energy+'%';$('ers-bar').style.background=player.boost?'#ffffff':'var(--acid)';
-  $('speed-lines').style.opacity=player.boost?'1':'0';
   rpmLights.forEach((light,i)=>{light.className=(i<gear.rpm*18?'on':'')+(i>13?' red':'')});
   $('sector').textContent=String((Math.floor(Math.max(0,player.progress)/track.length*4)%4)+1).padStart(2,'0');
   const fraction=wrap(player.road.s-track.start,track.length)/track.length;
@@ -302,7 +301,7 @@ function frame(timestamp){
   if(messageRemaining>0){messageRemaining-=dt;if(messageRemaining<=0)$('race-message').classList.remove('show')}
   updateModels(state==='racing'?dt:0);updateCamera(dt);uiClock+=dt;if(uiClock>.08){updateUI();uiClock=0}
   world.update?.(state==='photo'||state==='overview'?0:dt,cars,timestamp/1000);
-  const gear=gearInfo();arcadeHUD.draw({lap:player.lap,totalLaps:mode==='race'?3:'∞',position:sortedCars().indexOf(player)+1,drivers:cars.length,speed:player.speed*3.6,gear:gear.gear,rpm:gear.rpm,energy:player.energy},dt);
+  const gear=gearInfo();arcadeHUD.draw({lap:player.lap,totalLaps:mode==='race'?3:'∞',position:sortedCars().indexOf(player)+1,drivers:cars.length,speed:player.speed*3.6,gear:gear.gear,rpm:gear.rpm,energy:player.energy,boost:player.boost,racing:state==='racing'},dt);
   renderer.render(scene,camera);requestAnimationFrame(frame);
 }
 resetGrid();resize();

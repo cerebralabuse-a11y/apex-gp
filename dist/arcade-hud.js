@@ -1,5 +1,32 @@
 export function createArcadeHUD(canvas) {
   const ctx=canvas.getContext('2d');let w=1,h=1,dpr=1,needle=0;
+  const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
+  const streaks=Array.from({length:40},(_,i)=>({angle:i*2.39996,phase:(i*.618034)%1}));
+  let boostGlow=0;
+  function drawBoost(data,dt){
+    boostGlow=data.racing?boostGlow+((data.boost?1:0)-boostGlow)*(1-Math.exp(-dt*(data.boost?18:12))):0;
+    if(boostGlow<.01)return;
+    const cx=w*.5,cy=h*.44;
+    ctx.save();ctx.globalAlpha=boostGlow;
+    const glow=ctx.createRadialGradient(cx,cy,h*.25,cx,cy,Math.max(w,h)*.65);
+    glow.addColorStop(0,'#75eaff00');glow.addColorStop(1,'#75eaff38');
+    ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
+    if(!reducedMotion.matches){
+      const velocity=.6+Math.min(data.speed/326,1)*1.2;
+      for(const p of streaks){
+        p.phase=(p.phase+dt*velocity)%1;
+        const radius=.58+p.phase*p.phase*.88,tail=radius-(.07+p.phase*.21);
+        const dx=Math.cos(p.angle)*w*.64,dy=Math.sin(p.angle)*h*.76;
+        const x=cx+dx*radius,y=cy+dy*radius,tx=cx+dx*tail,ty=cy+dy*tail;
+        const line=ctx.createLinearGradient(tx,ty,x,y);
+        line.addColorStop(0,'#a4efff00');line.addColorStop(1,'#e4fbff');
+        ctx.globalAlpha=boostGlow*Math.sin(p.phase*Math.PI);
+        ctx.strokeStyle=line;ctx.lineWidth=(1.4+p.phase*2)*Math.min(w/1024,h/572);ctx.lineCap='round';
+        ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(x,y);ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
   function resize(width,height){w=width;h=height;dpr=Math.min(devicePixelRatio,2);canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);canvas.style.width=w+'px';canvas.style.height=h+'px'}
   const font=(size,weight=700)=>`${weight} ${size}px "Barlow Condensed", "Arial Narrow", Arial, sans-serif`;
   function dial(x,y,r,rpm,lower=false){
@@ -23,6 +50,7 @@ export function createArcadeHUD(canvas) {
   }
   function draw(data,dt){
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+    drawBoost(data,dt);
     const s=Math.min(1.6,Math.max(.67,Math.min(w/1024,h/572)));ctx.save();ctx.scale(s,s);
     strip(22,21,126,'LAP',`${Math.min(data.lap,3)}/${data.totalLaps}`);strip(22,62,114,'POS',`${data.position}/${data.drivers}`,true);
     const right=w/s, bottom=h/s;needle+=(data.rpm-needle)*(1-Math.exp(-dt*13));
@@ -31,7 +59,7 @@ export function createArcadeHUD(canvas) {
     ctx.fillStyle='#222820';ctx.fillRect(right-106,137,33,17);for(let i=0;i<4;i++){ctx.fillStyle=i<data.energy/25?'#c1b25b':'#585548';ctx.fillRect(right-102+i*6,140,3,11)}
     dial(right-94,bottom-80,78,needle,true);
     ctx.fillStyle='rgba(28,31,27,.94)';ctx.beginPath();ctx.moveTo(right-195,bottom-80);ctx.lineTo(right-162,bottom-80);ctx.lineTo(right-156,bottom-43);ctx.lineTo(right-21,bottom-43);ctx.lineTo(right-21,bottom-5);ctx.lineTo(right-195,bottom-5);ctx.closePath();ctx.fill();
-    ctx.textAlign='left';ctx.font=font(11);ctx.fillStyle='#d4c96a';ctx.fillText('BOOST',right-187,bottom-72);
+    ctx.textAlign='left';ctx.font=font(11);ctx.fillStyle=data.boost&&data.racing?'#a4efff':'#d4c96a';ctx.fillText(data.boost&&data.racing?'ERS ON':'BOOST',right-187,bottom-72);
     for(let i=0;i<5;i++){ctx.fillStyle=i<data.energy/20?'#a7b84b':'#634333';ctx.fillRect(right-185+i*8,bottom-62,4,12)}
     ctx.font=font(35,800);ctx.fillStyle='#f9f8e8';ctx.fillText(String(Math.round(data.speed)),right-177,bottom-25);ctx.font=font(40,800);ctx.textAlign='right';ctx.fillStyle='#d1d2c0';ctx.fillText(typeof data.gear==='number'?'F'+data.gear:data.gear,right-31,bottom-44);
     ctx.font=font(12,600);ctx.fillStyle='#e1e5cf';ctx.fillText('KM/H',right-32,bottom-15);
