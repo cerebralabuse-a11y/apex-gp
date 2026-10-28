@@ -1,6 +1,6 @@
 # APEX GP
 
-A browser-based 3D open-wheel racer on a 3.753 km Palm Beach Road circuit around Jewel Lake, Navi Mumbai. The current route is hand-traced from the supplied 14-corner circuit map, with scenery modeled from the supplied low-poly Navi Mumbai illustration. The graphics recreate the supplied reference's low-poly sunset art direction: waterfront, diamond sculpture, city skyline, crowds, colorful cars, lattice railings, voxel exhaust, and corner-mounted arcade instruments. The scene uses real, drivable 3D geometry. Three.js is vendored locally; there is no dependency installation or build step.
+A browser-based 3D open-wheel racer on a 3.753 km Palm Beach Road circuit around Jewel Lake, Navi Mumbai. The current route is hand-traced from the supplied 14-corner circuit map, with scenery modeled from the supplied low-poly Navi Mumbai illustration. The graphics recreate the supplied reference's low-poly sunset art direction: waterfront, diamond sculpture, city skyline, crowds, colorful cars, lattice railings, voxel exhaust, and corner-mounted arcade instruments. The scene uses real, drivable 3D geometry. Three.js is vendored locally; the static game runs directly from `dist/`.
 
 Run with Node.js:
 
@@ -9,6 +9,12 @@ npm run dev
 ```
 
 Open http://localhost:4173. Run the physics and full-field race tests with `npm test`.
+
+## Vercel Analytics
+
+`npm ci` installs `@vercel/analytics`. `npm run build` copies its browser SDK/license into `dist/vendor/` and writes the separate analytics entry. `vercel.json` runs that build and serves `dist/`. Vercel builds (`VERCEL=1`) enable pageview tracking and use Vercel's supplied observability client configuration when present. Local and Sites builds leave collection disabled.
+
+Enable **Web Analytics** in the Vercel project's Analytics tab, then redeploy. No API key is required in the game. The integration records pageviews; it does not send player names, lap times or custom gameplay events. The current Vercel URL is https://apex-gp-kohl.vercel.app/.
 
 ## Driving
 
