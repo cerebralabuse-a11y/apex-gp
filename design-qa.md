@@ -50,3 +50,13 @@ Individual buildings, tree placements and the illustrative composition can be re
 - Both box top faces were at model height .79. Raised the vent by .03 so its top is .82, leaving actual geometry separation on both sides and on every car.
 - Added a ray-based regression check at three positions per side. It failed against the previous model and passes with the repair. All fifteen tests pass.
 - Captured 49 moving Chase frames and a second moving Arcade sequence in the normal game, including 214 km/h in Chase and 154 km/h in Arcade. No disappearing vent patches observed. Controls, circuit and handling are unchanged.
+
+## Manual mobile controls and rendering — 29 October 2026
+
+- Added a proportional steering pad, a combined hold-GAS/slide-up-ERS pad and separate priority brake. All inputs remain manual. Pointer identities are tracked independently; cancellation, pauses, blur, orientation changes and resets clear held inputs.
+- Added a compact top HUD, safe-area-aware thumb zones, sensitivity, a recovery button and pause-menu access to settings. Desktop keyboard and gamepad bindings remain unchanged.
+- Landscape/fullscreen requests are feature-detected. Portrait starts wait for rotation; rotating during a race pauses it. The rotation prompt makes background controls inert, and landscape return requires Resume.
+- Mobile Optimized keeps the original scene palette and models, a local 2048 shadow map, adaptive 3D resolution, separate high-resolution HUD, 30 FPS option and nearby full-detail crowd instances. Distant spectator instances and inactive particle updates are reduced.
+- An actual previous-build comparison at the same camera showed High unchanged at 328 draw calls / 972,756 submitted triangles. Mobile Optimized used the same 328 calls / 743,460 triangles (23.6% fewer), with shadow-map area reduced by 75%. This is a render-work comparison on the desktop preview, not a measured Redmi frame-rate guarantee.
+- Responsive preview verified at 873 x 393 and 568 x 320; portrait handling at 393 x 873. The car stayed at 0 km/h without GAS; native pointer holds activated GAS and ERS together, reaching 290 km/h in the final straight-line boost run. Release cleared the pressed states. Browser console reported no errors.
+- Nineteen automated checks cover the existing circuit/physics/race, pointer combinations and cancellation, adaptive resolution and restoration of full crowd detail. Physical Android/iPhone multi-touch, fullscreen permissions and sustained thermal performance still require device testing.

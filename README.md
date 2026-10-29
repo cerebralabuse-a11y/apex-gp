@@ -10,6 +10,14 @@ npm run dev
 
 Open http://localhost:4173. Run the physics and full-field race tests with `npm test`.
 
+## Mobile racing
+
+Touchscreens get manual two-thumb controls and the **Mobile Optimized** graphics preset by default. Race in landscape: slide the left pad to steer, hold the lower GAS region to accelerate, and slide the same finger upward into ERS to boost while keeping the throttle open. Move to the separate BRAKE button to slow down; lift off both pedals to coast. Touch braking overrides throttle and boost. There is no auto-acceleration.
+
+Settings includes steering sensitivity, touch control visibility and a 30 FPS battery-saver option. The compact HUD keeps both thumb zones clear. Pause, focus loss, cancelled touches and rotation clear held inputs. Supported phone browsers request fullscreen and landscape locking on Play; other browsers show a rotation prompt. Returning from portrait requires an explicit resume.
+
+Mobile Optimized retains the car, landmarks, materials, water and nearby spectator detail. It uses a 2048-pixel local shadow map, adapts the 3D render scale within a 1.4-megapixel budget, updates active smoke more efficiently and limits distant spectator instances. The HUD stays independent of the 3D resolution. High retains its original scene detail. These rendering settings do not change the 120 Hz vehicle simulation or ERS rules. Physical-device performance varies; responsive browser checks do not certify every phone.
+
 ## Vercel Analytics
 
 `npm ci` installs `@vercel/analytics`. `npm run build` copies its browser SDK/license into `dist/vendor/` and writes the separate analytics entry. `vercel.json` runs that build and serves `dist/`. Vercel builds (`VERCEL=1`) enable pageview tracking and use Vercel's supplied observability client configuration when present. Local and Sites builds leave collection disabled.
@@ -31,7 +39,7 @@ Enable **Web Analytics** in the Vercel project's Analytics tab, then redeploy. N
 
 Grand Prix has eight drivers and three laps. Time Trial records circuit-specific personal bests in browser storage. Free Drive has no finish limit. Race setup offers three difficulty levels, lighting, graphics quality, audio, and an optional driving line. The garage changes the player's livery. The raised gantry fades near the player to keep the elevated camera clear.
 
-Vehicle handling includes speed-dependent steering, lateral tire grip, braking and drag, contact impulses, street-wall collision, slipstreaming, an automatic gearbox, and energy recovery. AI cars use the same vehicle simulation as the player, with braking anticipation and passing lanes. Four sequential checkpoints per lap and a distance jump guard protect lap counting. Fifteen runnable tests cover the original handling and full-field Grand Prix checks, scenery clearance, steered wheel stability, sidepod surface separation, camera framing through top speed, rotated-car wall clearance at all fourteen corners, continuous barrier seams, and bounded shoreline geometry.
+Vehicle handling includes speed-dependent steering, lateral tire grip, braking and drag, contact impulses, street-wall collision, slipstreaming, an automatic gearbox, and energy recovery. AI cars use the same vehicle simulation as the player, with braking anticipation and passing lanes. Four sequential checkpoints per lap and a distance jump guard protect lap counting. Nineteen runnable tests cover the original handling and full-field Grand Prix checks, mobile gesture/cancellation, adaptive rendering, crowd-detail restoration, scenery clearance, steered wheel stability, sidepod surface separation, camera framing through top speed, rotated-car wall clearance at all fourteen corners, continuous barrier seams, and bounded shoreline geometry.
 
 The academy platform is trimmed outside the racing corridor without moving its building. Background road surfaces sit below race asphalt; kerbs and railings follow continuous curved bands. Wheel steering and axle rotation use the correct YXZ rotation order, and recovery keeps the car visible. Camera framing keeps the whole car in view at speed. Body decals have separated depth layers, and the sun's shadow projection follows a stable texel grid to reduce shimmer.
 

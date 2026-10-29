@@ -1,20 +1,49 @@
 import { createWorld, buildCar, disposeCar, drivingCameraTargets } from './scene.js';
 import { createArcadeHUD } from './arcade-hud.js';
+import {bindMobileControls} from './mobile-controls.js';
 import { clamp, wrap, formatTime, sampleTrack, nearestTrack, createVehicle, stepVehicle, resolveTrackWall, updateProgress, collideVehicles, getAIControls } from './physics.js';
 
 const $ = id => document.getElementById(id);
 const canvas=$('world');
+const storage={get(key,fallback){try{return localStorage.getItem('apex-'+key)||fallback}catch{return fallback}},set(key,value){try{localStorage.setItem('apex-'+key,String(value))}catch{}}};
+const coarsePointer=matchMedia('(any-pointer: coarse)'),touchDevice=coarsePointer.matches||navigator.maxTouchPoints>0;
+const savedQuality=storage.get('quality',touchDevice?'mobile':'high'),initialQuality=['high','mobile','low'].includes(savedQuality)?savedQuality:(touchDevice?'mobile':'high');
 let world;
-try { world=createWorld(canvas); } catch(e) { $('loading').hidden=true;$('webgl-error').hidden=false;console.error(e);throw e; }
+try { world=createWorld(canvas,{quality:initialQuality}); } catch(e) { $('loading').hidden=true;$('webgl-error').hidden=false;console.error(e);throw e; }
 const {THREE,renderer,scene,camera,track,sun}=world;
 const arcadeHUD=createArcadeHUD($('arcade-hud'));
 const reducedMenuMotion=matchMedia('(prefers-reduced-motion: reduce)');let menuTime=0;
-const keys=new Set(),touch={};
-const storage={get(key,fallback){try{return localStorage.getItem('apex-'+key)||fallback}catch{return fallback}},set(key,value){try{localStorage.setItem('apex-'+key,String(value))}catch{}}};
+const keys=new Set();
 let overviewFrom='menu',orbitYaw=-.18,orbitPitch=.96,orbitZoom=1;
 let state='menu',photoFrom='menu',mode='race',difficulty='club',raceTime=0,countdown=0,accumulator=0,lastTime=0,uiClock=0,camMode=0,messageRemaining=0,messageCooldown=0;
 let cars=[],player,selectedColor=storage.get('color','#a2cf3e'),personalBest=Number(storage.get('best-'+track.id,'Infinity')),sessionBest=Infinity,pausedFrom='racing',dialogReturn='menu';
 let gamepadCamera=false,gamepadPause=false,gamepadActive=false;
+let mobileEnabled=false,pendingMobileStart=false,rotationPaused=false,nextMobileFrame=0;
+const mobileControls=bindMobileControls({steer:$('steer-pad'),pedals:$('pedal-pad'),brake:$('touch-brake'),drive:$('drive-pad'),enabled:()=>mobileEnabled&&innerWidth>innerHeight&&(state==='racing'||state==='countdown')&&!document.querySelector('dialog[open]')});
+const touch=mobileControls.input;
+function clearInputs(){keys.clear();mobileControls.clear()}
+function portraitPhone(){return mobileEnabled&&innerHeight>innerWidth}
+async function requestLandscape(){
+  if(!mobileEnabled||!touchDevice)return;
+  try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.()}catch{}
+  try{await screen.orientation?.lock?.('landscape')}catch{}
+}
+function showRotatePrompt(show){
+  const prompt=$('rotate-prompt'),opening=show&&prompt.hidden;prompt.hidden=!show;
+  for(const child of $('race-view').children)if(child!==prompt)child.inert=show;
+  if(opening)$('rotate-back').focus({preventScroll:true});
+}
+function syncOrientation(){
+  const portrait=portraitPhone();
+  if(portrait&&(state==='racing'||state==='countdown')){pausedFrom=state;state='paused';rotationPaused=true;clearInputs()}
+  showRotatePrompt(portrait&&(pendingMobileStart||rotationPaused));
+  if(!portrait&&pendingMobileStart){pendingMobileStart=false;startRaceNow()}
+  if(!portrait&&rotationPaused){rotationPaused=false;if(state==='paused'&&!document.querySelector('dialog[open]'))$('pause-dialog').showModal()}
+}
+function applyMobileControls(){
+  mobileEnabled=$('touch-select').value==='on'||($('touch-select').value==='auto'&&(coarsePointer.matches||navigator.maxTouchPoints>0));
+  document.body.classList.toggle('mobile-ui',mobileEnabled);clearInputs();syncOrientation();
+}
 const cameraTarget=new THREE.Vector3(),cameraLook=new THREE.Vector3(),smoothLook=new THREE.Vector3();
 const teamNames=['M. Voss','L. Moretti','K. Sato','A. Silva','N. Laurent','O. Clarke','R. Costa','YOU'];
 const teamColors=['#37c6ca','#e7a129','#4c68d9','#eeeecc','#ab82ca','#eb733f','#4caa75',selectedColor];
@@ -53,6 +82,7 @@ function notify(text,duration=2.5){$('race-message').textContent=text;$('race-me
 function gearInfo(){const forward=player.vx*Math.sin(player.yaw)+player.vz*Math.cos(player.yaw);if(forward<-.7)return{gear:'R',rpm:.35};if(player.speed<1)return{gear:state==='menu'?'N':'1',rpm:.25};const thresholds=[0,12,23,34,45,55,65,75,91];let gear=1;while(gear<8&&player.speed>thresholds[gear])gear++;return{gear,rpm:clamp(.3+(player.speed-thresholds[gear-1])/(thresholds[gear]-thresholds[gear-1])*.7,.2,1)}}
 
 function resetGrid(){
+  clearInputs();pendingMobileStart=rotationPaused=false;showRotatePrompt(false);
   for(const c of cars){scene.remove(c.mesh);disposeCar(c.mesh)}
   cars=[];mode=$('mode-select').value;difficulty=$('difficulty-select').value;
   const total=mode==='race'?8:1;
@@ -73,6 +103,11 @@ function resetGrid(){
 }
 
 function startRace(){
+  clearInputs();void requestLandscape();
+  if(portraitPhone()){pendingMobileStart=true;syncOrientation();return}
+  startRaceNow();
+}
+function startRaceNow(){
   resetGrid();keys.clear();document.body.classList.add('racing');document.body.classList.remove('on-title');$('menu-card').hidden=true;
   state='countdown';countdown=0;$('start-lights').hidden=false;$('session-tag').innerHTML='<i></i> FORMATION COMPLETE';
   [...$('start-lights').querySelectorAll('i')].forEach(l=>l.classList.remove('lit'));
@@ -85,7 +120,8 @@ function recover(car,automatic=false){
 }
 
 function getPlayerInput(){
-  let steer=(keys.has('KeyD')||keys.has('ArrowRight')||touch.right?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')||touch.left?1:0);
+  let steer=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0);
+  if(touch.pointers.has('steer'))steer=touch.steer;
   let throttle=keys.has('KeyW')||keys.has('ArrowUp')||touch.throttle?1:0,brake=keys.has('KeyS')||keys.has('ArrowDown')||touch.brake||keys.has('Space')?1:0,boost=keys.has('ShiftLeft')||keys.has('ShiftRight')||touch.boost;
   const gamepads=navigator.getGamepads?.()||[],pad=[...gamepads].find(Boolean);
   if(pad){
@@ -93,6 +129,7 @@ function getPlayerInput(){
     throttle=Math.max(throttle,pad.buttons[7]?.value||0);brake=Math.max(brake,pad.buttons[6]?.value||0);boost=boost||pad.buttons[0]?.pressed;
     if(!gamepadActive){gamepadActive=true;notify('GAMEPAD CONNECTED',2)}
   }
+  if(touch.brake){throttle=0;boost=false}
   return{steer,throttle,brake,boost};
 }
 function pollGamepad(){
@@ -152,7 +189,7 @@ function simulate(dt){
 
 function sortedCars(){return [...cars].sort((a,b)=>a.finished&&b.finished?a.finishTime-b.finishTime:a.finished?-1:b.finished?1:b.progress-a.progress)}
 function finishRace(){
-  state='finished';keys.clear();$('finish-card').hidden=false;$('session-tag').innerHTML='<i></i> CHEQUERED FLAG';
+  state='finished';clearInputs();$('finish-card').hidden=false;$('session-tag').innerHTML='<i></i> CHEQUERED FLAG';
   const pos=sortedCars().indexOf(player)+1;
   $('finish-title').textContent=pos===1?'THIS IS YOUR MOMENT.':pos<=3?'PODIUM. EARNED.':'WHAT A RACE.';
   $('finish-subtitle').textContent=pos===1?'You owned Jewel Lake. See you on the top step.':pos<=3?'A place on the podium. A little closer to the limit.':'Every lap makes you faster. The next one is yours.';
@@ -176,11 +213,11 @@ function updateCamera(dt,snap=false){
     const radius=1600*orbitZoom*Math.max(1,1.5/camera.aspect);
     camera.position.set(90+Math.sin(orbitYaw)*Math.cos(orbitPitch)*radius,Math.sin(orbitPitch)*radius,35+Math.cos(orbitYaw)*Math.cos(orbitPitch)*radius);camera.lookAt(90,0,35);camera.near=8;camera.far=24000;camera.fov=38;camera.updateProjectionMatrix();
     world.sky.position.copy(camera.position);scene.fog.near=18000;scene.fog.far=24000;
-    sun.position.set(400,650,400);sun.target.position.set(40,0,20);Object.assign(sun.shadow.camera,{left:-950,right:950,top:850,bottom:-850,far:2400});sun.shadow.camera.updateProjectionMatrix();
+    sun.position.set(400,650,400);sun.target.position.set(40,0,20);world.updateShadowCamera(true);
     updateOverviewLabels();return;
   }
   camera.near=camMode===1?.2:.5;camera.far=6500;scene.fog.near=1500;scene.fog.far=4200;
-  Object.assign(sun.shadow.camera,{left:-90,right:90,top:90,bottom:-90,far:1200});sun.shadow.camera.updateProjectionMatrix();
+  world.updateShadowCamera();
   if(state==='menu'){
     if(!reducedMenuMotion.matches)menuTime+=dt;
     const drift=Math.sin(menuTime*.12)*1.2,narrow=camera.aspect<1;
@@ -210,6 +247,8 @@ function updateUI(){
   $('lap').textContent=String(Math.min(player.lap,mode==='race'?3:999)).padStart(2,'0');
   $('lap-time').textContent=formatTime(state==='finished'?player.lapTimes.at(-1)||0:raceTime-player.lapStart);$('best-time').textContent=formatTime(personalBest);
   $('speed').textContent=String(Math.round(player.speed*3.6)).padStart(3,'0');$('gear').textContent=gear.gear;
+  $('mobile-lap').textContent=player.lap+'/'+(mode==='race'?'3':'∞');$('mobile-position').textContent=pos+'/'+cars.length;$('mobile-speed').textContent=Math.round(player.speed*3.6);$('mobile-gear').textContent=gear.gear;
+  $('mobile-energy').textContent=Math.round(player.energy)+'%';$('mobile-energy-bar').style.width=player.energy+'%';$('mobile-energy-bar').style.background=player.boost?'#b8f4fb':'#edcc85';
   $('throttle-meter').style.height=player.throttle*100+'%';$('brake-meter').style.height=player.brake*100+'%';
   $('ers-value').textContent=Math.round(player.energy)+'%';$('ers-bar').style.width=player.energy+'%';$('ers-bar').style.background=player.boost?'#ffffff':'var(--acid)';
   rpmLights.forEach((light,i)=>{light.className=(i<gear.rpm*18?'on':'')+(i>13?' red':'')});
@@ -230,7 +269,7 @@ function updateOverviewLabels(){for(const p of overviewLabels){const v=new THREE
 function toggleOverview(){
   if(document.querySelector('dialog[open]')||state==='countdown')return;
   if(state==='overview'){state=overviewFrom;overview.hidden=true;document.body.classList.remove('overview');$('map-button').setAttribute('aria-expanded','false');updateCamera(1,true);canvas.focus({preventScroll:true})}
-  else{overviewFrom=state;state='overview';keys.clear();Object.keys(touch).forEach(k=>touch[k]=false);document.body.classList.add('overview');overview.hidden=false;$('map-button').setAttribute('aria-expanded','true');updateCamera(1,true);$('close-overview').focus({preventScroll:true})}
+  else{overviewFrom=state;state='overview';clearInputs();document.body.classList.add('overview');overview.hidden=false;$('map-button').setAttribute('aria-expanded','true');updateCamera(1,true);$('close-overview').focus({preventScroll:true})}
 }
 $('map-button').addEventListener('click',toggleOverview);$('close-overview').addEventListener('click',toggleOverview);
 $('overview-zoom-in').addEventListener('click',()=>orbitZoom=Math.max(.55,orbitZoom-.12));$('overview-zoom-out').addEventListener('click',()=>orbitZoom=Math.min(1.8,orbitZoom+.12));
@@ -240,22 +279,23 @@ overview.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return
 overview.addEventListener('pointermove',e=>{if(!orbitPointer||e.pointerId!==orbitPointer.id)return;orbitYaw-=(e.clientX-orbitPointer.x)*.005;orbitPitch=clamp(orbitPitch+(e.clientY-orbitPointer.y)*.003,.5,1.5);orbitPointer.x=e.clientX;orbitPointer.y=e.clientY});
 for(const event of ['pointerup','pointercancel','lostpointercapture'])overview.addEventListener(event,()=>orbitPointer=null);
 overview.addEventListener('wheel',e=>{e.preventDefault();orbitZoom=clamp(orbitZoom+Math.sign(e.deltaY)*.06,.55,1.8)},{passive:false});
-function resize(){const rect=canvas.getBoundingClientRect();renderer.setSize(rect.width,rect.height,false);arcadeHUD.resize(rect.width,rect.height);camera.aspect=rect.width/rect.height;camera.updateProjectionMatrix()}
+function resize(){const rect=canvas.getBoundingClientRect();world.resize(rect.width,rect.height);arcadeHUD.resize(rect.width,rect.height);camera.aspect=rect.width/rect.height;camera.updateProjectionMatrix();clearInputs();syncOrientation()}
 new ResizeObserver(resize).observe(canvas);
 function cycleCamera(){if(state==='overview')toggleOverview();camMode=(camMode+1)%3;$('camera-label').textContent=['ARCADE CAM','COCKPIT CAM','CHASE CAM'][camMode];updateCamera(1,true);storage.set('camera',camMode)}
 function togglePause(){
-  if(state==='paused'&&$('pause-dialog').open){$('pause-dialog').close();state=pausedFrom;keys.clear();canvas.focus({preventScroll:true});return}
-  if(state==='racing'||state==='countdown'){pausedFrom=state;state='paused';keys.clear();$('pause-dialog').showModal()}
+  clearInputs();
+  if(state==='paused'&&$('pause-dialog').open){if(portraitPhone()){rotationPaused=true;$('pause-dialog').close();syncOrientation();return}$('pause-dialog').close();state=pausedFrom;canvas.focus({preventScroll:true});return}
+  if(state==='racing'||state==='countdown'){pausedFrom=state;state='paused';$('pause-dialog').showModal()}
 }
 function openDialog(id){
   if(document.querySelector('dialog[open]'))return;
   if(id==='leaderboard-dialog')$('board-personal-best').textContent=personalBest>0?formatTime(personalBest):'--:--.---';
-  dialogReturn=state;if(state==='racing'||state==='countdown')state='paused';keys.clear();$(id).showModal();
+  dialogReturn=state;if(state==='racing'||state==='countdown')state='paused';clearInputs();$(id).showModal();
 }
 for(const dialog of document.querySelectorAll('dialog')){
   dialog.querySelectorAll('.close-button').forEach(b=>b.addEventListener('click',()=>dialog.close()));
   dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});
-  dialog.addEventListener('close',()=>{if(dialog.id==='pause-dialog'){if(state==='paused')state=pausedFrom}else{if(state==='paused')state=dialogReturn;if(state==='menu')resetGrid()}keys.clear()});
+  dialog.addEventListener('close',()=>{if(dialog.id==='pause-dialog'){if(state==='paused'&&!rotationPaused&&!document.querySelector('dialog[open]'))state=pausedFrom}else{if(state==='paused')state=dialogReturn;if(state==='menu')resetGrid()}clearInputs();syncOrientation()});
 }
 $('start-button').addEventListener('click',startRace);
 $('race-again').addEventListener('click',()=>{state='menu';resetGrid()});
@@ -272,13 +312,24 @@ $('guide-nav').addEventListener('click',()=>openDialog('guide-dialog'));
 $('race-nav').addEventListener('click',()=>{document.querySelector('dialog[open]')?.close();if(state==='paused')togglePause();canvas.focus({preventScroll:true})});
 $('camera-button').addEventListener('click',cycleCamera);
 $('pause-button').addEventListener('click',togglePause);
+$('pause-setup').addEventListener('click',()=>{const from=pausedFrom;$('pause-dialog').close();openDialog('settings-dialog');dialogReturn=from});
+$('rotate-back').addEventListener('click',()=>{state='menu';pendingMobileStart=rotationPaused=false;resetGrid()});
+const mobileRecover=document.createElement('button');mobileRecover.id='mobile-recover';mobileRecover.className='glass-icon';mobileRecover.textContent='↻';mobileRecover.setAttribute('aria-label','Recover to circuit');mobileRecover.addEventListener('click',()=>{if(state==='racing'){clearInputs();recover(player)}});document.querySelector('.session-actions').appendChild(mobileRecover);
 $('resume-button').addEventListener('click',togglePause);
 $('restart-button').addEventListener('click',()=>{$('pause-dialog').close();startRace()});
 $('quit-button').addEventListener('click',()=>{state='menu';$('pause-dialog').close();resetGrid()});
 $('sound-button').addEventListener('click',()=>audio.set(!audio.enabled));
 $('audio-select').addEventListener('change',e=>audio.set(e.target.value==='on'));
 $('time-select').addEventListener('change',e=>{world.setLighting(e.target.value);$('weather-label').textContent=e.target.value==='dusk'?'DUSK':'CLEAR'});
-$('quality-select').addEventListener('change',e=>{world.setQuality(e.target.value==='high');resize()});
+$('quality-select').value=initialQuality;
+$('quality-select').addEventListener('change',e=>{world.setQuality(e.target.value);storage.set('quality',e.target.value);resize()});
+$('touch-select').value=storage.get('touch-controls','auto');
+$('touch-select').addEventListener('change',e=>{storage.set('touch-controls',e.target.value);applyMobileControls();resize()});
+coarsePointer.addEventListener?.('change',applyMobileControls);
+$('steering-sensitivity').value=storage.get('steering-sensitivity','1');touch.sensitivity=Number($('steering-sensitivity').value);
+$('steering-sensitivity').addEventListener('input',e=>{touch.sensitivity=Number(e.target.value);storage.set('steering-sensitivity',e.target.value)});
+$('mobile-fps').value=storage.get('mobile-fps','60');world.setFrameTarget(Number($('mobile-fps').value));
+$('mobile-fps').addEventListener('change',e=>{storage.set('mobile-fps',e.target.value);world.setFrameTarget(Number(e.target.value));nextMobileFrame=0});
 $('line-select').addEventListener('change',e=>{world.racingLine.visible=e.target.value==='on'});
 $('fullscreen-button').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('race-view').requestFullscreen()}catch{notify('FULLSCREEN UNAVAILABLE IN THIS WINDOW',3)}});
 document.querySelectorAll('[data-color]').forEach(b=>{if(b.dataset.color===selectedColor){document.querySelectorAll('[data-color]').forEach(x=>x.classList.remove('selected'));b.classList.add('selected')}b.addEventListener('click',()=>{selectedColor=b.dataset.color;storage.set('color',selectedColor);player.mesh.userData.paint.color.set(selectedColor);player.color=selectedColor;document.querySelectorAll('[data-color]').forEach(x=>x.classList.toggle('selected',x===b))})});
@@ -292,31 +343,32 @@ window.addEventListener('keydown',e=>{
   keys.add(e.code);if(e.repeat)return;
   if(e.code==='KeyB'){toggleOverview();return}
   if(state==='overview'){if(e.code==='Escape')toggleOverview();keys.clear();return}
-  if(e.code==='KeyV'){if(state==='photo'){state=photoFrom;document.body.classList.remove('photo')}else if(state==='menu'||state==='racing'){photoFrom=state;state='photo';document.body.classList.add('photo')}keys.clear();return}
+  if(e.code==='KeyV'){if(state==='photo'){state=photoFrom;document.body.classList.remove('photo')}else if(state==='menu'||state==='racing'){photoFrom=state;state='photo';document.body.classList.add('photo')}clearInputs();return}
   if(e.code==='KeyC')cycleCamera();if(e.code==='Escape'||e.code==='KeyP')togglePause();
   if(e.code==='KeyG')openDialog('garage-dialog');if(e.code==='KeyO')openDialog('settings-dialog');if(e.code==='KeyH')openDialog('guide-dialog');
   if(e.code==='KeyR'&&state==='racing')recover(player);if(e.code==='KeyM')audio.set(!audio.enabled);
   if(e.code==='Enter'&&state==='menu')startRace();
 });
 window.addEventListener('keyup',e=>keys.delete(e.code));
-window.addEventListener('blur',()=>{keys.clear();Object.keys(touch).forEach(k=>touch[k]=false);if(state==='racing'||state==='countdown')togglePause()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&(state==='racing'||state==='countdown'))togglePause()});
-document.querySelectorAll('[data-control]').forEach(button=>{
-  button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture(e.pointerId);touch[button.dataset.control]=true});
-  for(const event of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(event,()=>touch[button.dataset.control]=false);
-});
+window.addEventListener('blur',()=>{clearInputs();if(state==='racing'||state==='countdown')togglePause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInputs();if(state==='racing'||state==='countdown')togglePause()}});
+document.addEventListener('fullscreenchange',()=>{clearInputs();if(!document.fullscreenElement&&mobileEnabled&&(state==='racing'||state==='countdown'))togglePause()});
 
 function frame(timestamp){
-  const dt=Math.min((timestamp-lastTime)/1000||0,.1);lastTime=timestamp;
+  requestAnimationFrame(frame);
+  const capped=(mobileEnabled||$('quality-select').value==='mobile')&&$('mobile-fps').value==='30';
+  if(capped&&timestamp+.5<nextMobileFrame)return;nextMobileFrame=timestamp+(capped?1000/30:0);
+  const elapsed=(timestamp-lastTime)/1000||0,dt=Math.min(elapsed,.1);lastTime=timestamp;
+  world.updateQuality(elapsed,state==='racing'&&!document.hidden);
   pollGamepad();
   accumulator+=dt;let steps=0;while(accumulator>=1/120&&steps<12){simulate(1/120);accumulator-=1/120;steps++}
   if(messageRemaining>0){messageRemaining-=dt;if(messageRemaining<=0)$('race-message').classList.remove('show')}
   updateModels(state==='racing'?dt:0);updateCamera(dt);uiClock+=dt;if(uiClock>.08){updateUI();uiClock=0}
   world.update?.(state==='photo'||state==='overview'?0:dt,cars,timestamp/1000);
-  const gear=gearInfo();arcadeHUD.draw({lap:player.lap,totalLaps:mode==='race'?3:'∞',position:sortedCars().indexOf(player)+1,drivers:cars.length,speed:player.speed*3.6,gear:gear.gear,rpm:gear.rpm,energy:player.energy,boost:player.boost,racing:state==='racing'},dt);
-  renderer.render(scene,camera);requestAnimationFrame(frame);
+  const gear=gearInfo();if(state!=='menu')arcadeHUD.draw({compact:mobileEnabled,lap:player.lap,totalLaps:mode==='race'?3:'∞',position:sortedCars().indexOf(player)+1,drivers:cars.length,speed:player.speed*3.6,gear:gear.gear,rpm:gear.rpm,energy:player.energy,boost:player.boost,racing:state==='racing'},dt);
+  renderer.render(scene,camera);
 }
-resetGrid();resize();
+applyMobileControls();resetGrid();resize();
 requestAnimationFrame(timestamp=>{lastTime=timestamp;frame(timestamp);$('loading').style.opacity='0';setTimeout(()=>$('loading').hidden=true,550)});
 // Read-only telemetry is useful for race replays, accessibility tools, and QA.
 window.apex={get telemetry(){return{state,mode,time:raceTime,position:sortedCars().indexOf(player)+1,lap:player.lap,speed:player.speed*3.6,energy:player.energy,roadOffset:player.road.offset,progress:player.progress,trackLength:track.length,drivers:cars.map(c=>({name:c.name,speed:c.speed*3.6,offset:c.road.offset,progress:c.progress,lap:c.lap}))}},get renderer(){return renderer.info.render}};

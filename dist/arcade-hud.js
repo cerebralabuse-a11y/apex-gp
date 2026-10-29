@@ -13,7 +13,8 @@ export function createArcadeHUD(canvas) {
     ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
     if(!reducedMotion.matches){
       const velocity=.6+Math.min(data.speed/326,1)*1.2;
-      for(const p of streaks){
+      for(let i=0;i<(data.compact?20:streaks.length);i++){
+        const p=streaks[i];
         p.phase=(p.phase+dt*velocity)%1;
         const radius=.58+p.phase*p.phase*.88,tail=radius-(.07+p.phase*.21);
         const dx=Math.cos(p.angle)*w*.64,dy=Math.sin(p.angle)*h*.76;
@@ -51,6 +52,7 @@ export function createArcadeHUD(canvas) {
   function draw(data,dt){
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
     drawBoost(data,dt);
+    if(data.compact)return;
     const s=Math.min(1.6,Math.max(.67,Math.min(w/1024,h/572)));ctx.save();ctx.scale(s,s);
     strip(22,21,126,'LAP',`${Math.min(data.lap,3)}/${data.totalLaps}`);strip(22,62,114,'POS',`${data.position}/${data.drivers}`,true);
     const right=w/s, bottom=h/s;needle+=(data.rpm-needle)*(1-Math.exp(-dt*13));

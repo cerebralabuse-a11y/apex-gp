@@ -3,8 +3,11 @@ import { createCircuit, mapToWorld, lakeOutlines } from './track.js';
 import { buildNaviMumbai } from './city.js';
 import { sampleTrack, nearestTrack } from './physics.js';
 import {offsetContour,trackBand} from './map-geometry.js';
+import {createInstanceDetail} from './instance-detail.js';
+import {AdaptiveResolution,renderScale} from './render-quality.js';
 
-export function createLakesideWorld(canvas) {
+export function createLakesideWorld(canvas,{quality:initialQuality='high'}={}) {
+  let quality=initialQuality,adaptive=new AdaptiveResolution(Math.min(devicePixelRatio,1.5)),renderWidth=1,renderHeight=1,particleClock=0;
   let seed=73643;
   const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
   const palette=new Map();
@@ -18,7 +21,7 @@ export function createLakesideWorld(canvas) {
   const sun=new THREE.DirectionalLight('#ffd3a1',2.65);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-90,right:90,top:90,bottom:-90,near:1,far:1200});sun.shadow.bias=-.00012;sun.shadow.normalBias=.025;sun.position.set(300,230,300);scene.add(sun,sun.target);
   const sunOffset=new THREE.Vector3(480,220,400),shadowRight=new THREE.Vector3(400,0,-480).normalize(),shadowUp=new THREE.Vector3().crossVectors(sunOffset.clone().normalize(),shadowRight).normalize(),shadowTarget=new THREE.Vector3();
   function followSun(x,z){
-    const texel=180/sun.shadow.mapSize.x;shadowTarget.set(x,0,z);
+    const texel=(sun.shadow.camera.right-sun.shadow.camera.left)/sun.shadow.mapSize.x;shadowTarget.set(x,0,z);
     for(const axis of [shadowRight,shadowUp]){const value=shadowTarget.dot(axis);shadowTarget.addScaledVector(axis,Math.round(value/texel)*texel-value)}
     sun.target.position.copy(shadowTarget);sun.position.copy(shadowTarget).add(sunOffset);
   }
@@ -211,19 +214,41 @@ export function createLakesideWorld(canvas) {
   });
   for(const o of staticMeshes){o.parent.remove(o);o.geometry.dispose()}
   for(const [m,b] of staticBatches){const geometry=new THREE.BufferGeometry();for(const key of ['position','normal']){const merged=new Float32Array(b[key].reduce((n,a)=>n+a.length,0));let offset=0;for(const a of b[key]){merged.set(a,offset);offset+=a.length}geometry.setAttribute(key,new THREE.BufferAttribute(merged,3))}const mesh=new THREE.Mesh(geometry,m);mesh.castShadow=mesh.receiveShadow=true;scene.add(mesh)}
+  const spectatorDetail=[heads,bodies,limbs].map(mesh=>createInstanceDetail(mesh));
+  let detailX=0,detailZ=0,isOverview=false;
+  function updateDetail(x,z){detailX=x;detailZ=z;for(const update of spectatorDetail)update(x,z,quality==='mobile'&&!isOverview)}
 
   const smokeCount=240,smoke=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:'#ddd2c8',transparent:true,opacity:.27,depthWrite:false}),smokeCount),particles=Array.from({length:smokeCount},()=>({life:0}));smoke.frustumCulled=false;scene.add(smoke);let smokeIndex=0,smokeClock=0;
+  dummy.scale.setScalar(0);dummy.updateMatrix();for(let i=0;i<smokeCount;i++)smoke.setMatrixAt(i,dummy.matrix);dummy.scale.set(1,1,1);
   function update(dt,cars,elapsed){
-    lakeMaterial.uniforms.time.value=elapsed;smokeClock+=dt;
+    lakeMaterial.uniforms.time.value=elapsed;particleClock+=dt;
     const player=cars.find(c=>c.isPlayer);
+    if(player)updateDetail(player.x,player.z);
     if(player){const along=(gantry.position.x-player.x)*Math.sin(player.yaw)+(gantry.position.z-player.z)*Math.cos(player.yaw);const opacity=Math.max(.06,Math.min(1,(Math.abs(along+7)-14)/9));gantryMaterials.forEach(m=>{m.opacity=opacity;m.depthWrite=opacity>.98})}
-    if(smokeClock>.065){smokeClock=0;for(const car of cars){if(car.speed<3||car.throttle<.2)continue;const p=particles[smokeIndex++%smokeCount];Object.assign(p,{life:1,x:car.x-Math.sin(car.yaw)*3.3,z:car.z-Math.cos(car.yaw)*3.3,y:.35,size:.18+random()*.16,drift:(random()-.5)*.6})}}
-    particles.forEach((p,i)=>{p.life=Math.max(0,p.life-dt*.75);p.y+=dt*.45;p.x+=dt*(p.drift||0);const scale=p.life>0?p.size*(1+(1-p.life)*3)*Math.min(1,p.life*5):0;dummy.position.set(p.x||0,p.y||0,p.z||0);dummy.rotation.set(0,0,0);dummy.scale.setScalar(scale);dummy.updateMatrix();smoke.setMatrixAt(i,dummy.matrix)});smoke.instanceMatrix.needsUpdate=true;dummy.scale.set(1,1,1);
+    if(particleClock===0||(quality==='mobile'&&particleClock<1/30))return;
+    const particleDt=particleClock;particleClock=0;smokeClock+=particleDt;
+    if(smokeClock>.065){smokeClock=0;for(const car of cars){if(car.speed<3||car.throttle<.2||(quality==='mobile'&&player&&Math.hypot(car.x-player.x,car.z-player.z)>150))continue;const p=particles[smokeIndex++%smokeCount];Object.assign(p,{life:1,x:car.x-Math.sin(car.yaw)*3.3,z:car.z-Math.cos(car.yaw)*3.3,y:.35,size:.18+random()*.16,drift:(random()-.5)*.6})}}
+    let changed=false;
+    particles.forEach((p,i)=>{if(p.life<=0)return;p.life=Math.max(0,p.life-particleDt*.75);p.y+=particleDt*.45;p.x+=particleDt*p.drift;const scale=p.life>0?p.size*(1+(1-p.life)*3)*Math.min(1,p.life*5):0;dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(0,0,0);dummy.scale.setScalar(scale);dummy.updateMatrix();smoke.setMatrixAt(i,dummy.matrix);changed=true});if(changed)smoke.instanceMatrix.needsUpdate=true;dummy.scale.set(1,1,1);
   }
   function setLighting(mode){
     const settings={golden:['#cd7e85','#ffb18b','#ffd3a1',2.65,1.9,'#e3aa92'],day:['#8cb5cd','#d9d4b1','#fff0dc',2.3,1.8,'#bfccd0'],dusk:['#655b86','#d7958c','#eeac96',1.9,1.3,'#af9da9']},s=settings[mode];
     skyMaterial.uniforms.top.value.set(s[0]);skyMaterial.uniforms.bottom.value.set(s[1]);sun.color.set(s[2]);sun.intensity=s[3];ambient.intensity=s[4];scene.fog.color.set(s[5]);sunDisc.visible=mode!=='day';
   }
-  function setQuality(high){renderer.setPixelRatio(Math.min(devicePixelRatio,high?2:1));renderer.shadowMap.enabled=high}
-  return {THREE,renderer,scene,camera,track,sun,sky,racingLine,lamps,lakeBoundary,lakes,landmarks:city.labels,setLighting,setQuality,followSun,update};
+  function resize(width,height){
+    renderWidth=width;renderHeight=height;
+    const ratio=quality==='mobile'?renderScale(width,height,adaptive.ratio,1400000):Math.min(devicePixelRatio,quality==='high'?2:1);
+    if(renderer.getPixelRatio()!==ratio)renderer.setPixelRatio(ratio);renderer.setSize(width,height,false);
+  }
+  function updateShadowCamera(overview=false){if(isOverview!==overview){isOverview=overview;updateDetail(detailX,detailZ)}const radius=quality==='mobile'?64:90;Object.assign(sun.shadow.camera,overview?{left:-950,right:950,top:850,bottom:-850,far:2400}:{left:-radius,right:radius,top:radius,bottom:-radius,far:1200});sun.shadow.camera.updateProjectionMatrix()}
+  function setQuality(value){
+    quality=value===true?'high':value===false?'low':value;
+    const size=Math.min(renderer.capabilities.maxTextureSize,quality==='high'?4096:2048);
+    if(sun.shadow.mapSize.x!==size){sun.shadow.map?.dispose();sun.shadow.map=null;sun.shadow.mapSize.set(size,size)}
+    renderer.shadowMap.enabled=quality!=='low';adaptive=new AdaptiveResolution(Math.min(devicePixelRatio,1.5),adaptive.target);updateShadowCamera();updateDetail(detailX,detailZ);resize(renderWidth,renderHeight);
+  }
+  function setFrameTarget(fps){adaptive.target=fps;adaptive.average=1/fps;adaptive.slow=adaptive.fast=0}
+  function updateQuality(dt,active){if(quality==='mobile'&&active&&adaptive.sample(dt))resize(renderWidth,renderHeight)}
+  setQuality(initialQuality);
+  return {THREE,renderer,scene,camera,track,sun,sky,racingLine,lamps,lakeBoundary,lakes,landmarks:city.labels,setLighting,setQuality,followSun,update,resize,updateShadowCamera,updateQuality,setFrameTarget};
 }
