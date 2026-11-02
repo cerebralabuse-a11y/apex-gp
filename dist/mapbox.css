@@ -9,3 +9,14 @@
 #city-map-credits .mapboxgl-ctrl-logo{margin:0;transform:scale(.85);transform-origin:bottom left}
 #city-map-status{position:absolute;left:50%;top:15px;transform:translateX(-50%);max-width:80%;padding:10px 16px;background:#302c28e6;color:#ffe2a8;font:12px sans-serif;z-index:12;border:1px solid #ddbd8170;border-radius:6px}
 #webgl-error a{display:inline-block;margin:16px 8px 0;padding:12px 18px;background:#efc475;color:#242a25;font:600 12px sans-serif;text-decoration:none;border-radius:5px}
+.map-choice-shortcut{margin-left:18px!important;color:#efd294!important;border-bottom:1px solid #efd29455!important}
+.map-choice-panel{margin:16px 0 20px;padding:15px;background:#ffffff07;border:1px solid #ffffff18;border-radius:6px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+.map-choice-panel label{font:9px var(--mono);color:#b8c4ad;letter-spacing:1px}
+.map-choice-panel select{display:block;margin-top:9px;width:100%;padding:10px;background:#17231f;color:#e7ead7;border:1px solid #ffffff26;font:11px var(--mono)}
+.map-choice-panel button{padding:12px;background:#edcc85;color:#253126;font:700 10px var(--mono);white-space:nowrap}.map-choice-panel button:disabled{opacity:.4}
+.map-choice-panel p{grid-column:1/-1;font-size:10px!important;line-height:1.6;color:#a3ae98!important;margin:0!important}
+.city-beta-badge{position:absolute;left:50%;top:18px;transform:translateX(-50%);padding:7px 10px;background:#303a32dd;color:#f2d292;border:1px solid #dfc58b66;border-radius:4px;z-index:6;font:700 9px var(--mono);letter-spacing:.8px;pointer-events:none}
+.city-beta-badge i{font:8px var(--mono);color:#bac7ae;margin-left:8px;font-style:normal}
+.on-title .city-beta-badge{top:70px;right:24px;left:auto;transform:none}
+.mobile-ui .city-beta-badge{top:68px;font-size:8px;padding:4px 7px}.mobile-ui .city-beta-badge i{font-size:7px}
+@media(max-width:500px){.map-choice-panel{grid-template-columns:1fr}.map-choice-panel button{min-height:40px}.map-choice-shortcut{margin-left:12px!important}}

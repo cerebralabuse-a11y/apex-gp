@@ -1,12 +1,16 @@
 # APEX GP
 
+The **original 3.753 km map is the default**. Choose **Navi Mumbai city · BETA** in Race Setup (or use `?map=city`) to test the work-in-progress geographic map. The title screen also has a map shortcut. Loading a map starts a fresh session; personal bests stay separate. The original map makes no Mapbox SDK, style or tile requests.
+
+## City Map Beta
+
 A browser-based 3D open-wheel racer using the user's selected Mapbox city area around Jewel Lake, Navi Mumbai. The current street-aligned circuit measures approximately 3.626 km. Cars, asphalt, kerbs, barriers and the mapped mall model share Mapbox's WebGL canvas and camera. Buildings, roads, shorelines and park surroundings come from the supplied live Mapbox style. Warm sunset lighting and the existing arcade HUD and driving controls are retained. Three.js is vendored locally; the static game runs directly from `dist/`.
 
 The selected footprint is saved in `dist/city-area.geojson`: `[73.002858,19.018653,73.021193,19.035861]` (approximately 3.69 km²). The route in `dist/city-circuit.geojson` follows mapped connected streets, replacing the old image coordinate system. Metres remain the physics unit. The new track has its own personal-best key; old 3.753 km lap records are not compared with it.
 
 Mapbox GL JS 3.33.0, style and tiles require an internet connection. The user's public token is intentionally client-side. Mapbox/OpenStreetMap attribution stays visible and clickable. Mapbox geometry supplies the city's initial fidelity; it is not a surveyed or certified racing circuit. The Nexus Seawoods podium and two blue-glass towers use their mapped footprints and heights. Native objects are cleared from the racing corridor and outside the selected area with a scoped clip layer; tile loading remains managed by Mapbox and is not an offline city export.
 
-The original hand-built 3.753 km map is preserved at `?map=classic` and is also offered if the live city fails to load. The existing title screen, three game modes, AI, 120 Hz vehicle simulation, wall collisions, ERS rules, manual mobile gestures, pause and recovery remain in place.
+The original hand-built 3.753 km map is the root-URL default and is also available at `?map=classic` and is also offered if the live city fails to load. The existing title screen, three game modes, AI, 120 Hz vehicle simulation, wall collisions, ERS rules, manual mobile gestures, pause and recovery remain in place.
 
 Run with Node.js:
 

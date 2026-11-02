@@ -2,6 +2,7 @@ import { createWorld, buildCar, disposeCar, drivingCameraTargets } from './scene
 import { createArcadeHUD } from './arcade-hud.js';
 import {bindMobileControls} from './mobile-controls.js';
 import {createMapboxWorld} from './mapbox-world.js';
+import {selectedMap,mapUrl} from './map-choice.js';
 import { clamp, wrap, formatTime, sampleTrack, nearestTrack, createVehicle, stepVehicle, resolveTrackWall, updateProgress, collideVehicles, getAIControls } from './physics.js';
 
 const $ = id => document.getElementById(id);
@@ -9,9 +10,16 @@ const canvas=$('world');
 const storage={get(key,fallback){try{return localStorage.getItem('apex-'+key)||fallback}catch{return fallback}},set(key,value){try{localStorage.setItem('apex-'+key,String(value))}catch{}}};
 const coarsePointer=matchMedia('(any-pointer: coarse)'),touchDevice=coarsePointer.matches||navigator.maxTouchPoints>0;
 const savedQuality=storage.get('quality',touchDevice?'mobile':'high'),initialQuality=['high','mobile','low'].includes(savedQuality)?savedQuality:(touchDevice?'mobile':'high');
+const mapMode=selectedMap(location.search);
 let world;
-try { world=new URLSearchParams(location.search).get('map')==='classic'?createWorld(canvas,{quality:initialQuality}):await createMapboxWorld(canvas,{quality:initialQuality}); } catch(e) { $('loading').hidden=true;$('webgl-error').hidden=false;$('webgl-error').querySelector('h2').textContent='The city map could not start';$('webgl-error').querySelector('p').textContent=e.message;console.error(e);throw e; }
+try { world=mapMode==='classic'?createWorld(canvas,{quality:initialQuality}):await createMapboxWorld(canvas,{quality:initialQuality}); } catch(e) { $('loading').hidden=true;$('webgl-error').hidden=false;$('webgl-error').querySelector('h2').textContent=mapMode==='city'?'The city map could not start':'The game could not start';$('webgl-error').querySelector('p').textContent=e.message;console.error(e);throw e; }
 const {THREE,renderer,scene,camera,track,sun}=world;
+$('map-select').value=mapMode;
+$('map-choice').textContent=mapMode==='city'?'CITY MAP · BETA ↗':'ORIGINAL MAP ↗';
+$('city-beta-badge').hidden=mapMode!=='city';
+$('load-map').disabled=true;
+$('map-select').addEventListener('change',e=>{$('load-map').disabled=e.target.value===mapMode});
+$('load-map').addEventListener('click',()=>location.assign(mapUrl(location.href,$('map-select').value)));
 const arcadeHUD=createArcadeHUD($('arcade-hud'));
 const reducedMenuMotion=matchMedia('(prefers-reduced-motion: reduce)');let menuTime=0;
 const keys=new Set();
@@ -305,6 +313,7 @@ $('race-again').addEventListener('click',()=>{state='menu';resetGrid()});
 $('settings-button').addEventListener('click',()=>openDialog('settings-dialog'));
 $('setup-button').addEventListener('click',()=>openDialog('settings-dialog'));
 $('mode-button').addEventListener('click',()=>{$('mode-select').focus();openDialog('settings-dialog')});
+$('map-choice').addEventListener('click',()=>{openDialog('settings-dialog');$('map-select').focus()});
 $('garage-nav').addEventListener('click',()=>openDialog('garage-dialog'));
 $('garage-menu').addEventListener('click',()=>openDialog('garage-dialog'));
 $('leaderboard-menu').addEventListener('click',()=>openDialog('leaderboard-dialog'));

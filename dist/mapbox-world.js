@@ -9,6 +9,7 @@ async function json(url){const r=await fetch(url);if(!r.ok)throw new Error('City
 async function loadMapbox(){
   if(window.mapboxgl)return window.mapboxgl;
   await new Promise((resolve,reject)=>{
+    const css=document.createElement('link');css.rel='stylesheet';css.href='https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.css';document.head.append(css);
     const script=document.createElement('script');script.src='https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.js';
     script.onload=resolve;script.onerror=()=>reject(new Error('Mapbox could not load. Check your connection, or use the original map below.'));document.head.append(script);
   });
