@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="arcade.css">
   <link rel="stylesheet" href="title.css">
   <link rel="stylesheet" href="mobile.css">
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.css">
+  <link rel="stylesheet" href="mapbox.css">
 </head>
 <body class="on-title">
   <header class="topbar">
@@ -33,7 +35,7 @@
       </section>
       <div class="vignette"></div><div id="speed-lines"></div>
       <div id="loading"><span class="loading-logo">A<span>/</span></span><b>PREPARING THE GRID</b><div class="loading-track"><i></i></div><small>Great races start here.</small></div>
-      <div id="webgl-error" hidden><h2>Your browser needs WebGL</h2><p>Enable graphics acceleration or try an up-to-date browser on this device.</p></div>
+      <div id="webgl-error" hidden><h2>Your browser needs WebGL</h2><p>Enable graphics acceleration or try an up-to-date browser on this device.</p><a href="?map=classic">PLAY ORIGINAL MAP</a><a href="./">RETRY CITY MAP</a></div>
       <div class="hud-top">
         <div class="race-stat"><span>POSITION</span><div><strong id="position">08</strong><small>/ 08</small></div></div>
         <div class="race-stat"><span>LAP</span><div><strong id="lap">01</strong><small id="lap-total">/ 03</small></div></div>

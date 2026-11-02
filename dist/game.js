@@ -1,6 +1,7 @@
 import { createWorld, buildCar, disposeCar, drivingCameraTargets } from './scene.js';
 import { createArcadeHUD } from './arcade-hud.js';
 import {bindMobileControls} from './mobile-controls.js';
+import {createMapboxWorld} from './mapbox-world.js';
 import { clamp, wrap, formatTime, sampleTrack, nearestTrack, createVehicle, stepVehicle, resolveTrackWall, updateProgress, collideVehicles, getAIControls } from './physics.js';
 
 const $ = id => document.getElementById(id);
@@ -9,7 +10,7 @@ const storage={get(key,fallback){try{return localStorage.getItem('apex-'+key)||f
 const coarsePointer=matchMedia('(any-pointer: coarse)'),touchDevice=coarsePointer.matches||navigator.maxTouchPoints>0;
 const savedQuality=storage.get('quality',touchDevice?'mobile':'high'),initialQuality=['high','mobile','low'].includes(savedQuality)?savedQuality:(touchDevice?'mobile':'high');
 let world;
-try { world=createWorld(canvas,{quality:initialQuality}); } catch(e) { $('loading').hidden=true;$('webgl-error').hidden=false;console.error(e);throw e; }
+try { world=new URLSearchParams(location.search).get('map')==='classic'?createWorld(canvas,{quality:initialQuality}):await createMapboxWorld(canvas,{quality:initialQuality}); } catch(e) { $('loading').hidden=true;$('webgl-error').hidden=false;$('webgl-error').querySelector('h2').textContent='The city map could not start';$('webgl-error').querySelector('p').textContent=e.message;console.error(e);throw e; }
 const {THREE,renderer,scene,camera,track,sun}=world;
 const arcadeHUD=createArcadeHUD($('arcade-hud'));
 const reducedMenuMotion=matchMedia('(prefers-reduced-motion: reduce)');let menuTime=0;
@@ -53,6 +54,8 @@ const mapScale=Math.min(305/(bounds.maxX-bounds.minX),180/(bounds.maxZ-bounds.mi
 function mapPoint(p){return{x:180+(p.x-(bounds.minX+bounds.maxX)/2)*mapScale,y:112+(p.z-(bounds.minZ+bounds.maxZ)/2)*mapScale}}
 const mapPath=new Path2D();track.points.forEach((p,i)=>{const q=mapPoint(p);i?mapPath.lineTo(q.x,q.y):mapPath.moveTo(q.x,q.y)});mapPath.closePath();
 $('circuit-length').textContent=(track.length/1000).toFixed(3);
+document.querySelector('.overview-heading b').textContent=(track.length/1000).toFixed(3)+' KM';
+document.querySelector('.board-circuit span:last-child').textContent='JEWEL LAKE / '+(track.length/1000).toFixed(3)+' KM / NAVI MUMBAI';
 document.querySelector('.minimap-label span').textContent=(track.length/1000).toFixed(3)+' KM';
 for(let i=0;i<18;i++)$('rpm-bar').appendChild(document.createElement('i'));
 const rpmLights=[...$('rpm-bar').children];
@@ -199,7 +202,7 @@ function finishRace(){
 
 function updateModels(dt){
   for(const car of cars){
-    car.mesh.position.set(car.x,.035+((car.road.distance>9&&car.speed>5)?Math.sin(raceTime*70)*.025:0),car.z);car.mesh.rotation.set(0,car.yaw,clamp(car.steer*car.speed*.0007,-.05,.05));
+    car.mesh.position.set(car.x,(world.roadHeight||0)+.035+((car.road.distance>9&&car.speed>5)?Math.sin(raceTime*70)*.025:0),car.z);car.mesh.rotation.set(0,car.yaw,clamp(car.steer*car.speed*.0007,-.05,.05));
     car.mesh.userData.wheels.forEach((wheel,i)=>{wheel.rotation.x=(wheel.rotation.x+car.speed*dt/.47)%(Math.PI*2);if(i%2===1)wheel.rotation.y=-car.steer*.2});
     car.mesh.userData.rearLight.visible=car.brake>.1||Math.floor(raceTime/.35)%2===0;
     car.mesh.userData.helmet.visible=car.mesh.userData.visor.visible=!car.isPlayer||camMode!==1;
@@ -210,8 +213,8 @@ function updateCamera(dt,snap=false){
   if(!player)return;
   const fx=Math.sin(player.yaw),fz=Math.cos(player.yaw),speed=player.speed;
   if(state==='overview'){
-    const radius=1600*orbitZoom*Math.max(1,1.5/camera.aspect);
-    camera.position.set(90+Math.sin(orbitYaw)*Math.cos(orbitPitch)*radius,Math.sin(orbitPitch)*radius,35+Math.cos(orbitYaw)*Math.cos(orbitPitch)*radius);camera.lookAt(90,0,35);camera.near=8;camera.far=24000;camera.fov=38;camera.updateProjectionMatrix();
+    const radius=(world.overviewRadius||1600)*orbitZoom*Math.max(1,1.5/camera.aspect),cx=world.overviewRadius?0:90,cz=world.overviewRadius?0:35;
+    camera.position.set(cx+Math.sin(orbitYaw)*Math.cos(orbitPitch)*radius,Math.sin(orbitPitch)*radius,cz+Math.cos(orbitYaw)*Math.cos(orbitPitch)*radius);camera.lookAt(cx,0,cz);camera.near=8;camera.far=24000;camera.fov=38;camera.updateProjectionMatrix();
     world.sky.position.copy(camera.position);scene.fog.near=18000;scene.fog.far=24000;
     sun.position.set(400,650,400);sun.target.position.set(40,0,20);world.updateShadowCamera(true);
     updateOverviewLabels();return;
@@ -351,6 +354,7 @@ window.addEventListener('keydown',e=>{
 });
 window.addEventListener('keyup',e=>keys.delete(e.code));
 window.addEventListener('blur',()=>{clearInputs();if(state==='racing'||state==='countdown')togglePause()});
+window.addEventListener('city-map-interrupted',()=>{clearInputs();if(state==='racing'||state==='countdown')togglePause()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInputs();if(state==='racing'||state==='countdown')togglePause()}});
 document.addEventListener('fullscreenchange',()=>{clearInputs();if(!document.fullscreenElement&&mobileEnabled&&(state==='racing'||state==='countdown'))togglePause()});
 
@@ -366,7 +370,7 @@ function frame(timestamp){
   updateModels(state==='racing'?dt:0);updateCamera(dt);uiClock+=dt;if(uiClock>.08){updateUI();uiClock=0}
   world.update?.(state==='photo'||state==='overview'?0:dt,cars,timestamp/1000);
   const gear=gearInfo();if(state!=='menu')arcadeHUD.draw({compact:mobileEnabled,lap:player.lap,totalLaps:mode==='race'?3:'∞',position:sortedCars().indexOf(player)+1,drivers:cars.length,speed:player.speed*3.6,gear:gear.gear,rpm:gear.rpm,energy:player.energy,boost:player.boost,racing:state==='racing'},dt);
-  renderer.render(scene,camera);
+  if(world.render)world.render();else renderer.render(scene,camera);
 }
 applyMobileControls();resetGrid();resize();
 requestAnimationFrame(timestamp=>{lastTime=timestamp;frame(timestamp);$('loading').style.opacity='0';setTimeout(()=>$('loading').hidden=true,550)});
