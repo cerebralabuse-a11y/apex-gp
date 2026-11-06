@@ -2,16 +2,19 @@ export function createArcadeHUD(canvas) {
   const ctx=canvas.getContext('2d');let w=1,h=1,dpr=1,needle=0;
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
   const streaks=Array.from({length:40},(_,i)=>({angle:i*2.39996,phase:(i*.618034)%1}));
-  let boostGlow=0;
+  let boostGlow=0,speedGlow=0;
   function drawBoost(data,dt){
     boostGlow=data.racing?boostGlow+((data.boost?1:0)-boostGlow)*(1-Math.exp(-dt*(data.boost?18:12))):0;
-    if(boostGlow<.01)return;
+    const motion=!reducedMotion.matches&&data.effects!=='off',subtle=data.effects==='subtle'?.35:1;
+    const speedTarget=data.racing&&motion?Math.max(0,Math.min(1,(data.speed-100)/210))*.3*subtle:0;
+    speedGlow+=(speedTarget-speedGlow)*(1-Math.exp(-dt*5));
+    if(boostGlow+speedGlow<.01)return;
     const cx=w*.5,cy=h*.44;
     ctx.save();ctx.globalAlpha=boostGlow;
     const glow=ctx.createRadialGradient(cx,cy,h*.25,cx,cy,Math.max(w,h)*.65);
     glow.addColorStop(0,'#75eaff00');glow.addColorStop(1,'#75eaff38');
     ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
-    if(!reducedMotion.matches){
+    if(motion){
       const velocity=.6+Math.min(data.speed/326,1)*1.2;
       for(let i=0;i<(data.compact?20:streaks.length);i++){
         const p=streaks[i];
@@ -21,7 +24,7 @@ export function createArcadeHUD(canvas) {
         const x=cx+dx*radius,y=cy+dy*radius,tx=cx+dx*tail,ty=cy+dy*tail;
         const line=ctx.createLinearGradient(tx,ty,x,y);
         line.addColorStop(0,'#a4efff00');line.addColorStop(1,'#e4fbff');
-        ctx.globalAlpha=boostGlow*Math.sin(p.phase*Math.PI);
+        ctx.globalAlpha=Math.min(1,boostGlow*.9*subtle+speedGlow)*Math.sin(p.phase*Math.PI);
         ctx.strokeStyle=line;ctx.lineWidth=(1.4+p.phase*2)*Math.min(w/1024,h/572);ctx.lineCap='round';
         ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(x,y);ctx.stroke();
       }

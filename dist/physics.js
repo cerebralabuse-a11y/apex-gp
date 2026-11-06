@@ -1,3 +1,4 @@
+import {SETUPS,setupId} from './vehicle-setup.js';
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const CAR_HALF_WIDTH=1.76,CAR_HALF_LENGTH=3.2;
 export const wrap = (v, n) => ((v % n) + n) % n;
@@ -49,7 +50,8 @@ export function createVehicle(track, distance, lane = 0) {
 export function stepVehicle(car, input, dt, halfWidth = 9) {
   const onRoad = car.road.distance < halfWidth + .6;
   const onCurb = car.road.distance < halfWidth + 2;
-  const grip = onRoad ? 8.5 : onCurb ? 6 : 2.4;
+  const setup=SETUPS[setupId(car.setup)];
+  const grip = onRoad ? 8.5*setup.grip : onCurb ? 6 : 2.4;
   car.throttle = clamp(input.throttle || 0, 0, 1);
   car.brake = clamp(input.brake || 0, 0, 1);
   car.steer += (clamp(input.steer || 0, -1, 1) - car.steer) * (1 - Math.exp(-dt * 7));
@@ -60,9 +62,13 @@ export function stepVehicle(car, input, dt, halfWidth = 9) {
   fx = Math.sin(car.yaw); fz = Math.cos(car.yaw);
   forward = car.vx * fx + car.vz * fz;
   const lateral = car.vx * fz - car.vz * fx;
-  car.boost = !!input.boost && car.energy > .1 && car.throttle > .1 && forward > 5 && onRoad;
+  // An empty battery stays disengaged until the driver releases ERS. Otherwise
+  // one regen tick would repeatedly trigger a new boost kick and sound.
+  if(!input.boost)car.ersEmpty=false;
+  else if(car.energy<=.1)car.ersEmpty=true;
+  car.boost = !!input.boost && !car.ersEmpty && car.energy > .1 && car.throttle > .1 && forward > 5 && onRoad;
   const engine = car.throttle * (23 - clamp(forward / 95, 0, 1) * 9 + (car.boost ? 12 : 0));
-  const drag = .00205 * forward * Math.abs(forward) + forward * (onRoad ? .028 : .38);
+  const drag = .00205 * setup.drag * forward * Math.abs(forward) + forward * (onRoad ? .028 : .38);
   const braking = car.brake * (forward > .6 ? 42 : 4.5);
   const newForward = clamp(forward + (engine - drag - braking) * dt, -9, car.boost ? 90.6 : 84);
   const newLateral = lateral * Math.exp(-grip * dt);
