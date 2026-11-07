@@ -1,0 +1,9 @@
+{
+  "ruleset": "verification-original-balanced-v1",
+  "files": {
+    "dist/physics.js": "1495eefe1e115e468f4205135920f19b6106b9084d203edc28d9ee7c058dce75",
+    "dist/vehicle-setup.js": "4efbab508ccaaea8736cdd923369b7b787f280da6e439dc67d2bf12825aa5659",
+    "dist/verification-core.js": "413def535eff9a531b67eab350b0376902f44816e1398aae986a8c3abe0aff04",
+    "dist/verification-track.js": "5b94aae988c2f57aa3938881b1282662a287851882b0adbcce001a36e69b8f2c"
+  }
+}

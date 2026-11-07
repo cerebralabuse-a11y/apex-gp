@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>APEX GP · Replay verification lab</title><link rel="stylesheet" href="lab.css"></head>
+<body><main><header><a href="/">APEX GP <span>↗ BACK TO GAME</span></a><b>DEVELOPMENT LAB · UNRANKED</b></header>
+<h1>One drive. Independent proof.</h1><p>Record controls in this browser. Reconstruct the run on Node and Cloudflare’s local Workers runtime. This lab tests physics consistency; it does not authenticate players or award prizes.</p>
+<div class="layout"><section class="circuit"><canvas id="track" width="900" height="600" aria-label="Original circuit and recorded trajectory"></canvas><div class="live"><b id="stage">READY</b><span id="speed">0 KM/H</span><span id="ticks">0 TICKS</span></div></section>
+<section class="panel"><span class="eyebrow">ORIGINAL MAP / BALANCED / 120 HZ</span><h2>Record a complete attempt</h2><p>A fixed standing start, an outlap, then one timed lap. The reference driver records real quantized inputs, accelerated for testing.</p>
+<button id="reference">RECORD REFERENCE RUN</button><button id="manual" class="secondary">DRIVE MANUALLY</button><button id="stop" class="secondary" disabled>STOP / INVALIDATE</button>
+<p class="hint">Manual: W/S gas and brake · A/D steer · Shift ERS. Focus loss invalidates a manual attempt.</p>
+<div class="touch" aria-label="Lab driving controls"><button data-control="left" aria-label="Steer left">←</button><button data-control="right" aria-label="Steer right">→</button><button data-control="brake">BRAKE</button><button data-control="gas">GAS</button><button data-control="boost">ERS</button></div>
+<div class="divider"></div><h2>Replay independently</h2><p id="availability">Checking local verifier…</p><button id="verify" disabled>VERIFY ON NODE</button><button id="worker" class="secondary" disabled>VERIFY ON WORKERS</button><button id="download" class="secondary" disabled>DOWNLOAD INPUT RECORDING</button>
+<p id="status" role="status" aria-live="polite">Ready to record.</p><dl id="results"></dl></section></div>
+<footer>Verification prototype v1 · No official standings · <span id="ruleset"></span></footer></main><script type="module" src="lab.js"></script></body></html>
