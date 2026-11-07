@@ -5,9 +5,14 @@
   "scripts": {
     "dev": "node server.mjs",
     "build": "node build.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node scripts/check-verification.mjs && node --test tests/*.test.mjs",
+    "verifier:dev": "wrangler dev workers/verification-local.mjs --local --ip 127.0.0.1 --port 8790 --compatibility-date 2026-11-07",
+    "verifier:check": "node scripts/check-verification.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1"
+  },
+  "devDependencies": {
+    "wrangler": "4.158.0"
   }
 }
