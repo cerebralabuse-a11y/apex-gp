@@ -8,7 +8,7 @@ class BodyError extends Error {
   constructor(status,code){super(code);this.status=status;this.code=code}
 }
 
-async function readJson(request,maxBytes){
+export async function readJson(request,maxBytes){
   const length=request.headers.get('content-length');
   if(length!==null){
     if(!/^\d+$/.test(length))throw new BodyError(400,'invalid_content_length');

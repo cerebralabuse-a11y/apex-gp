@@ -3,3 +3,8 @@ node_modules/
 artifacts/f4-upgrade/
 .wrangler/
 artifacts/verification-captures/
+.env
+.env.*
+!.env.example
+supabase/.temp/
+artifacts/competition-captures/

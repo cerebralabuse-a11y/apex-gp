@@ -1,4 +1,8 @@
 import {copyFile,writeFile} from 'node:fs/promises';
+import {build} from 'esbuild';
+
+await build({stdin:{contents:"export {createClient} from '@supabase/supabase-js';",resolveDir:process.cwd()},bundle:true,minify:true,format:'esm',platform:'browser',target:'es2020',outfile:'dist/vendor/supabase-client.js',legalComments:'eof'});
+await copyFile('node_modules/@supabase/supabase-js/LICENSE','dist/vendor/SUPABASE-LICENSE.txt');
 
 const sdk=new URL(import.meta.resolve('@vercel/analytics'));
 await copyFile(sdk,'dist/vendor/vercel-analytics.js');

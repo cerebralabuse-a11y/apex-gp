@@ -1,0 +1,2 @@
+# Bundled vendor code contains intentional whitespace inside string literals.
+dist/vendor/supabase-client.js -whitespace linguist-generated=true

@@ -10,9 +10,13 @@
     "verifier:check": "node scripts/check-verification.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.119.0",
     "@vercel/analytics": "^2.0.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.15",
+    "esbuild": "0.28.2",
+    "supabase": "3.0.0",
     "wrangler": "4.158.0"
   }
 }

@@ -6,6 +6,9 @@ import {selectedMap,mapUrl} from './map-choice.js';
 import {createGarage} from './garage.js';
 import {createDrivingFeel} from './driving-feel.js';
 import {setupId,bestLapKey} from './vehicle-setup.js';
+import {createCompetitionClient} from './competition-client.js';
+import {createCompetitionUI} from './competition-ui.js';
+import {createRecordedAttempt} from './competition-recording.js';
 import { clamp, wrap, formatTime, sampleTrack, nearestTrack, createVehicle, stepVehicle, resolveTrackWall, updateProgress, collideVehicles, getAIControls } from './physics.js';
 
 const $ = id => document.getElementById(id);
@@ -31,6 +34,14 @@ let overviewFrom='menu',orbitYaw=-.18,orbitPitch=.96,orbitZoom=1;
 let state='menu',photoFrom='menu',mode='race',difficulty='club',raceTime=0,countdown=0,accumulator=0,lastTime=0,uiClock=0,camMode=0,messageRemaining=0,messageCooldown=0;
 let cars=[],player,selectedColor=storage.get('color','#a2cf3e'),personalBest=Number(storage.get('best-'+track.id,'Infinity')),sessionBest=Infinity,pausedFrom='racing',dialogReturn='menu';
 let selectedSetup=setupId(storage.get('car-setup','balanced')),activeSetup=selectedSetup;
+let pendingVerifiedTicket=null,verifiedSession=null,submittingVerified=false,verifiedStartGeneration=0;
+const competition=createCompetitionClient();
+const competitionUI=createCompetitionUI({api:competition,trackId:track.id,onStart:async()=>{
+  if(mapMode!=='classic')throw new Error('Verified beta laps use the original map.');
+  const generation=++verifiedStartGeneration,ticket=await competition.startAttempt();
+  if(generation!==verifiedStartGeneration||!$('leaderboard-dialog').open)throw new Error('Attempt cancelled. Start a new one when ready.');
+  $('leaderboard-dialog').close();pendingVerifiedTicket=ticket;startRace();
+}});
 let motionSetting=storage.get('camera-effects','full');
 if(!['full','subtle','off'].includes(motionSetting))motionSetting='full';
 const drivingFeel=createDrivingFeel(),smoothCamera=new THREE.Vector3();
@@ -57,6 +68,7 @@ function showRotatePrompt(show){
 }
 function syncOrientation(){
   const portrait=portraitPhone();
+  if(portrait&&verifiedSession&&(state==='racing'||state==='countdown'))invalidateVerified('Rotation interrupted the beta attempt. Start again in landscape.');
   if(portrait&&(state==='racing'||state==='countdown')){pausedFrom=state;state='paused';rotationPaused=true;clearInputs()}
   showRotatePrompt(portrait&&(pendingMobileStart||rotationPaused));
   if(!portrait&&pendingMobileStart){pendingMobileStart=false;startRaceNow()}
@@ -105,11 +117,12 @@ const audio={enabled:false,ctx:null,oscillators:[],gain:null,wind:null,filter:nu
 function notify(text,duration=2.5){$('race-message').textContent=text;$('race-message').classList.add('show');messageRemaining=duration}
 function gearInfo(){const forward=player.vx*Math.sin(player.yaw)+player.vz*Math.cos(player.yaw);if(forward<-.7)return{gear:'R',rpm:.35};if(player.speed<1)return{gear:state==='menu'?'N':'1',rpm:.25};const thresholds=[0,12,23,34,45,55,65,75,91];let gear=1;while(gear<8&&player.speed>thresholds[gear])gear++;return{gear,rpm:clamp(.3+(player.speed-thresholds[gear-1])/(thresholds[gear]-thresholds[gear-1])*.7,.2,1)}}
 
-function resetGrid(){
+function resetGrid({verifiedTicket=null}={}){
+  pendingVerifiedTicket=null;
   clearInputs();pendingMobileStart=rotationPaused=false;showRotatePrompt(false);
-  activeSetup=selectedSetup;personalBest=Number(storage.get(bestLapKey(track.id,activeSetup),'Infinity'));drivingFeel.reset();
+  verifiedSession=null;activeSetup=verifiedTicket?'balanced':selectedSetup;personalBest=Number(storage.get(bestLapKey(track.id,activeSetup),'Infinity'));drivingFeel.reset();
   for(const c of cars){scene.remove(c.mesh);disposeCar(c.mesh)}
-  cars=[];mode=$('mode-select').value;difficulty=$('difficulty-select').value;
+  cars=[];mode=verifiedTicket?'time':$('mode-select').value;difficulty=$('difficulty-select').value;
   const total=mode==='race'?8:1;
   for(let i=0;i<total;i++){
     const isPlayer=i===total-1,gridOffset=mode==='race'?-8-i*14:-8;
@@ -117,6 +130,8 @@ function resetGrid(){
     car.progress=gridOffset;car.index=i;car.isPlayer=isPlayer;car.name=isPlayer?'YOU':teamNames[i];car.color=isPlayer?selectedColor:teamColors[i];car.aiLane=i%2===0?-1.6:1.6;car.targetLane=car.aiLane;car.aiSkill=.96+(i%3)*.018;car.stuckTime=0;
     car.setup=isPlayer?activeSetup:'balanced';car.mesh=buildCar(car.color,isPlayer?27:11+i*7);scene.add(car.mesh);cars.push(car);if(isPlayer)player=car;
   }
+  if(verifiedTicket)verifiedSession=createRecordedAttempt(verifiedTicket,player);
+  $('verified-retry')?.remove();
   raceTime=0;sessionBest=Infinity;countdown=0;accumulator=0;messageRemaining=0;$('race-message').classList.remove('show');
   $('finish-card').hidden=true;$('start-lights').hidden=true;$('menu-card').hidden=false;
   document.body.classList.remove('racing');document.body.classList.add('on-title');$('session-tag').innerHTML='<i></i> ON THE GRID';
@@ -133,12 +148,14 @@ function startRace(){
   startRaceNow();
 }
 function startRaceNow(){
-  resetGrid();keys.clear();document.body.classList.add('racing');document.body.classList.remove('on-title');$('menu-card').hidden=true;
+  const verifiedTicket=pendingVerifiedTicket;pendingVerifiedTicket=null;
+  resetGrid({verifiedTicket});keys.clear();document.body.classList.add('racing');document.body.classList.remove('on-title');$('menu-card').hidden=true;
   state='countdown';countdown=0;$('start-lights').hidden=false;$('session-tag').innerHTML='<i></i> FORMATION COMPLETE';
   [...$('start-lights').querySelectorAll('i')].forEach(l=>l.classList.remove('lit'));
   canvas.focus({preventScroll:true});if(audio.enabled)audio.start();
 }
 function recover(car,automatic=false){
+  if(car.isPlayer&&verifiedSession){invalidateVerified('Recovery invalidates a beta attempt. Start a new one.');return}
   const road=nearestTrack(track,car.x,car.z),p=sampleTrack(track,road.s,car.isPlayer?0:car.aiLane);
   car.x=p.x;car.z=p.z;car.yaw=p.yaw;car.vx=p.tx*(automatic?18:0);car.vz=p.tz*(automatic?18:0);car.speed=automatic?18:0;car.steer=0;car.road=nearestTrack(track,car.x,car.z);car.previousS=p.s;car.recovered=2;car.stuckTime=0;
   if(car.isPlayer){notify('BACK ON TRACK · KEEP PUSHING',2);updateCamera(1,true)}
@@ -174,12 +191,19 @@ function simulate(dt){
   if(state==='countdown'){
     const before=Math.floor(countdown/.65);countdown+=dt;const count=Math.min(5,Math.floor(countdown/.65));
     if(count!==before&&count<=5&&count>0){audio.beep(420,.08);[...$('start-lights').querySelectorAll('i')].forEach((l,i)=>l.classList.toggle('lit',i<count));world.lamps.forEach((l,i)=>l.material.color.set(i<count?'#f3392c':'#351b1e'))}
-    if(countdown>4.45){state='racing';$('start-lights').hidden=true;$('session-tag').innerHTML='<i></i> '+(mode==='race'?'RACE IN PROGRESS':mode==='time'?'TIME TRIAL':'FREE DRIVE');world.lamps.forEach(l=>l.material.color.set('#351b1e'));audio.beep(840,.25);notify('LIGHTS OUT. FULL SEND.',2)}
+    if(countdown>4.45){state='racing';$('start-lights').hidden=true;$('session-tag').innerHTML='<i></i> '+(verifiedSession?'VERIFIED BETA · OUTLAP':mode==='race'?'RACE IN PROGRESS':mode==='time'?'TIME TRIAL':'FREE DRIVE');world.lamps.forEach(l=>l.material.color.set('#351b1e'));audio.beep(840,.25);notify(verifiedSession?'BETA OUTLAP · NEXT LAP IS TIMED':'LIGHTS OUT. FULL SEND.',3)}
     return;
   }
   if(state!=='racing')return;
   raceTime+=dt;messageCooldown=Math.max(0,messageCooldown-dt);
   const input=getPlayerInput();
+  if(verifiedSession){
+    const before=verifiedSession.run.stage,stage=verifiedSession.step(input);
+    if(before==='outlap'&&stage==='timed'){player.lapStart=raceTime;$('session-tag').innerHTML='<i></i> VERIFIED BETA · FLYING LAP';notify('FLYING LAP · MAKE IT COUNT',3)}
+    if(stage==='invalid')invalidateVerified(verifiedSession.run.invalidReason);
+    else if(stage==='complete')finishVerified();
+    return;
+  }
   for(const car of cars){
     if(car.finished)continue;
     let controls=car.isPlayer?{...input}:aiInput(car,dt);
@@ -214,12 +238,44 @@ function simulate(dt){
 
 function sortedCars(){return [...cars].sort((a,b)=>a.finished&&b.finished?a.finishTime-b.finishTime:a.finished?-1:b.finished?1:b.progress-a.progress)}
 function finishRace(){
+  const labels=$('finish-card').querySelectorAll('.finish-stats small');labels[0].textContent='POSITION';labels[1].textContent='RACE TIME';labels[2].textContent='BEST LAP';
   state='finished';clearInputs();$('finish-card').hidden=false;$('session-tag').innerHTML='<i></i> CHEQUERED FLAG';
   const pos=sortedCars().indexOf(player)+1;
   $('finish-title').textContent=pos===1?'THIS IS YOUR MOMENT.':pos<=3?'PODIUM. EARNED.':'WHAT A RACE.';
   $('finish-subtitle').textContent=pos===1?'You owned Jewel Lake. See you on the top step.':pos<=3?'A place on the podium. A little closer to the limit.':'Every lap makes you faster. The next one is yours.';
   $('finish-position').textContent=String(pos).padStart(2,'0')+' / 08';$('finish-time').textContent=formatTime(raceTime);$('finish-best').textContent=formatTime(sessionBest);
   notify('FINISH · P'+pos,3);audio.beep(1000,.35);updateUI();
+}
+
+function verifiedFinishCard(title,description){
+  state='finished';clearInputs();$('start-lights').hidden=true;$('finish-card').hidden=false;
+  $('finish-title').textContent=title;$('finish-subtitle').textContent=description;
+  const labels=$('finish-card').querySelectorAll('.finish-stats small');labels[0].textContent='MODE';labels[1].textContent='FLYING LAP';labels[2].textContent='SAVE STATUS';
+  $('finish-position').textContent='BETA';$('finish-time').textContent=verifiedSession?.run.result?formatTime(verifiedSession.run.result.timeMs/1000):'--:--.---';$('finish-best').textContent='UNSAVED';
+  $('session-tag').innerHTML='<i></i> BETA · PRIZES NOT ACTIVE';
+}
+function invalidateVerified(reason){
+  if(!verifiedSession||state==='finished')return;
+  verifiedSession.invalidate(reason);verifiedFinishCard('ATTEMPT ENDED.',reason);competitionUI.showAttemptStatus(reason);updateUI();
+}
+function finishVerified(){
+  const run=verifiedSession.run;player.lapTimes=[run.result.timeMs/1000];sessionBest=run.result.timeMs/1000;
+  verifiedFinishCard('LAP COMPLETE.','The server is replaying your inputs. Prizes are not active.');
+  const retry=document.createElement('button');retry.id='verified-retry';retry.className='primary-button';retry.textContent='RETRY SAVE';retry.hidden=true;retry.addEventListener('click',()=>submitVerified(verifiedSession));$('finish-card').append(retry);
+  updateUI();void submitVerified(verifiedSession);
+}
+async function submitVerified(session){
+  if(submittingVerified||session.run.stage!=='complete')return;submittingVerified=true;
+  const retry=$('verified-retry');if(retry)retry.hidden=true;competitionUI.showAttemptStatus('Verifying your beta lap…');
+  try{
+    const receipt=await competition.submit(session.ticket.attemptId,session.recording);
+    if(!receipt.saved)throw new Error('The server did not save this attempt.');
+    competitionUI.showAttemptStatus('Lap verified and saved to the beta leaderboard. Prizes are not active.');
+    if(verifiedSession===session){$('finish-title').textContent='LAP VERIFIED.';$('finish-subtitle').textContent='Saved to the global beta leaderboard. Prizes are not active.';$('finish-best').textContent='SAVED'}
+  }catch(error){
+    competitionUI.showAttemptStatus(error.message);
+    if(verifiedSession===session){$('finish-subtitle').textContent=error.message;$('finish-best').textContent='UNSAVED';if(retry)retry.hidden=false}
+  }finally{submittingVerified=false}
 }
 
 function updateModels(dt){
@@ -298,6 +354,7 @@ for(const corner of track.corners){const p=sampleTrack(track,corner.s,19),el=doc
 for(const landmark of world.landmarks){const el=document.createElement('span');el.className='overview-landmark';el.textContent=landmark.title;overview.appendChild(el);overviewLabels.push({el,...landmark})}
 function updateOverviewLabels(){for(const p of overviewLabels){const v=new THREE.Vector3(p.x,p.y,p.z).project(camera),margin=p.el.offsetWidth/2+6;p.el.style.left=clamp((v.x*.5+.5)*overview.clientWidth,margin,overview.clientWidth-margin)+'px';p.el.style.top=(-v.y*.5+.5)*100+'%';p.el.hidden=v.z>1||Math.abs(v.x)>1||Math.abs(v.y)>1}}
 function toggleOverview(){
+  if(verifiedSession&&(state==='racing'||state==='countdown')){invalidateVerified('Opening the map ended the beta attempt. Start again when ready.');return}
   if(document.querySelector('dialog[open]')||state==='countdown')return;
   if(state==='overview'){state=overviewFrom;overview.hidden=true;document.body.classList.remove('overview');$('map-button').setAttribute('aria-expanded','false');updateCamera(1,true);canvas.focus({preventScroll:true})}
   else{overviewFrom=state;state='overview';clearInputs();document.body.classList.add('overview');overview.hidden=false;$('map-button').setAttribute('aria-expanded','true');updateCamera(1,true);$('close-overview').focus({preventScroll:true})}
@@ -314,20 +371,23 @@ function resize(){const rect=canvas.getBoundingClientRect();world.resize(rect.wi
 new ResizeObserver(resize).observe(canvas);
 function cycleCamera(){if(state==='overview')toggleOverview();camMode=(camMode+1)%3;$('camera-label').textContent=['ARCADE CAM','COCKPIT CAM','CHASE CAM'][camMode];updateCamera(1,true);storage.set('camera',camMode)}
 function togglePause(){
+  if(verifiedSession&&(state==='racing'||state==='countdown')){invalidateVerified('Pausing or losing focus ends a beta attempt. Start a new one.');return}
   clearInputs();
   if(state==='paused'&&$('pause-dialog').open){if(portraitPhone()){rotationPaused=true;$('pause-dialog').close();syncOrientation();return}$('pause-dialog').close();state=pausedFrom;canvas.focus({preventScroll:true});return}
   if(state==='racing'||state==='countdown'){pausedFrom=state;state='paused';$('pause-dialog').showModal()}
 }
 function openDialog(id){
   if(document.querySelector('dialog[open]'))return;
+  if(verifiedSession&&(state==='racing'||state==='countdown'))invalidateVerified('Opening a menu ended the beta attempt. Start again when ready.');
   if(id==='leaderboard-dialog')$('board-personal-best').textContent=personalBest>0?formatTime(personalBest):'--:--.---';
   dialogReturn=state;if(state==='racing'||state==='countdown')state='paused';clearInputs();$(id).showModal();
+  if(id==='leaderboard-dialog')void competitionUI.open();
   if(id==='garage-dialog')garage.open({color:selectedColor,setup:selectedSetup,locked:dialogReturn!=='menu'&&dialogReturn!=='finished'});
 }
 for(const dialog of document.querySelectorAll('dialog')){
   dialog.querySelectorAll('.close-button').forEach(b=>b.addEventListener('click',()=>dialog.close()));
   dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});
-  dialog.addEventListener('close',()=>{if(dialog.id==='garage-dialog')garage.close();if(dialog.id==='pause-dialog'){if(state==='paused'&&!rotationPaused&&!document.querySelector('dialog[open]'))state=pausedFrom}else{if(state==='paused')state=dialogReturn;if(state==='menu')resetGrid()}clearInputs();syncOrientation()});
+  dialog.addEventListener('close',()=>{if(dialog.id==='leaderboard-dialog')verifiedStartGeneration++;if(dialog.id==='garage-dialog')garage.close();if(dialog.id==='pause-dialog'){if(state==='paused'&&!rotationPaused&&!document.querySelector('dialog[open]'))state=pausedFrom}else{if(state==='paused')state=dialogReturn;if(state==='menu'&&!pendingMobileStart)resetGrid()}clearInputs();syncOrientation()});
 }
 $('start-button').addEventListener('click',startRace);
 $('race-again').addEventListener('click',()=>{state='menu';resetGrid()});
@@ -377,7 +437,7 @@ window.addEventListener('keydown',e=>{
   keys.add(e.code);if(e.repeat)return;
   if(e.code==='KeyB'){toggleOverview();return}
   if(state==='overview'){if(e.code==='Escape')toggleOverview();keys.clear();return}
-  if(e.code==='KeyV'){if(state==='photo'){state=photoFrom;document.body.classList.remove('photo')}else if(state==='menu'||state==='racing'){photoFrom=state;state='photo';document.body.classList.add('photo')}clearInputs();return}
+  if(e.code==='KeyV'){if(verifiedSession&&state==='racing'){invalidateVerified('Photo mode ended the beta attempt.');return}if(state==='photo'){state=photoFrom;document.body.classList.remove('photo')}else if(state==='menu'||state==='racing'){photoFrom=state;state='photo';document.body.classList.add('photo')}clearInputs();return}
   if(e.code==='KeyC')cycleCamera();if(e.code==='Escape'||e.code==='KeyP')togglePause();
   if(e.code==='KeyG')openDialog('garage-dialog');if(e.code==='KeyO')openDialog('settings-dialog');if(e.code==='KeyH')openDialog('guide-dialog');
   if(e.code==='KeyR'&&state==='racing')recover(player);if(e.code==='KeyM')audio.set(!audio.enabled);
@@ -406,6 +466,7 @@ function frame(timestamp){
   if(debugRender)canvas.dataset.renderStats=JSON.stringify({calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,fov:camera.fov,effects:effectiveMotion(),boost:player.boost,setup:activeSetup});
 }
 applyMobileControls();resetGrid();resize();
+if(new URLSearchParams(location.search).get('auth')==='callback')void competition.ready().then(()=>openDialog('leaderboard-dialog')).catch(error=>{openDialog('leaderboard-dialog');competitionUI.showAttemptStatus(error.message)});
 requestAnimationFrame(timestamp=>{lastTime=timestamp;frame(timestamp);$('loading').style.opacity='0';setTimeout(()=>$('loading').hidden=true,550)});
 // Read-only telemetry is useful for race replays, accessibility tools, and QA.
 window.apex={get telemetry(){return{state,mode,time:raceTime,position:sortedCars().indexOf(player)+1,lap:player.lap,speed:player.speed*3.6,energy:player.energy,roadOffset:player.road.offset,progress:player.progress,trackLength:track.length,drivers:cars.map(c=>({name:c.name,speed:c.speed*3.6,offset:c.road.offset,progress:c.progress,lap:c.lap}))}},get renderer(){return renderer.info.render}};
