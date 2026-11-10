@@ -1,6 +1,7 @@
 #leaderboard-dialog .competition-entry{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);gap:36px;margin:26px 0 30px;padding:26px 0;border-top:1px solid #edcc8535;border-bottom:1px solid #edcc8535}
 #leaderboard-dialog .competition-entry h3{font:600 27px/1.15 var(--display);letter-spacing:.3px;margin:9px 0 12px}
 .competition-kicker{display:block;font:600 10px/1.5 var(--body);letter-spacing:1.4px;color:#edcc85}
+.competition-google{margin-top:14px;min-height:44px}
 #leaderboard-dialog .competition-entry p{font:12px/1.65 var(--body);margin:9px 0;color:#b9c0b3}
 .competition-form{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-top:16px}
 .competition-field{display:flex;flex:1 1 160px;min-width:0;flex-direction:column;gap:7px}

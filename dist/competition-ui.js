@@ -22,6 +22,7 @@ export function createCompetitionUI({api,onStart,trackId}){
   email.input.autocomplete='email';email.input.required=true;email.input.maxLength=254;send.type='submit';
   signInForm.append(email.label,send);signInForm.hidden=true;account.append(signInForm);
   const emailNote=element('p','competition-hint','A secure link signs you in. Your email stays private.');emailNote.hidden=true;account.append(emailNote);
+  const google=button('CONTINUE WITH GOOGLE','competition-button competition-google');google.hidden=true;account.insertBefore(google,signInForm);
 
   const signedIn=element('div','competition-identity'),identityText=element('span'),signOut=button('SIGN OUT','competition-text-button');
   signedIn.append(identityText,signOut);signedIn.hidden=true;account.append(signedIn);
@@ -52,7 +53,7 @@ export function createCompetitionUI({api,onStart,trackId}){
   let enabled=false,signed=false,profile=null,pending=false,generation=0,lastEmail=null,attemptMessage='',dirtyName=false;
   function message(text,isError=false){entryStatus.textContent=text;entryStatus.dataset.error=String(isError)}
   function controls(){
-    send.disabled=save.disabled=signOut.disabled=pending||!enabled;
+    google.disabled=send.disabled=save.disabled=signOut.disabled=pending||!enabled;
     email.input.disabled=name.input.disabled=pending||!enabled;
     refreshButton.disabled=pending;
     start.disabled=pending||!enabled||!signed||!profile||trackId!==ORIGINAL_TRACK;
@@ -81,14 +82,14 @@ export function createCompetitionUI({api,onStart,trackId}){
       const config=await api.ready();if(request!==generation)return false;
       enabled=!!config.enabled;
       if(!enabled){
-        signed=false;profile=null;signInForm.hidden=emailNote.hidden=signedIn.hidden=profileForm.hidden=true;
+        signed=false;profile=null;google.hidden=signInForm.hidden=emailNote.hidden=signedIn.hidden=profileForm.hidden=true;
         connection.textContent=config.reason||'Online beta is not configured on this host.';
         emptyBoard('Practice is open.','The online beta is unavailable right now. Your browser-only practice records are still available below.');boardState.textContent='Online beta unavailable.';return false;
       }
       const identity=await api.identity();if(request!==generation)return false;
       signed=!!identity.signedIn;
       if(lastEmail!==(identity.email||null)){profile=null;dirtyName=false;name.input.value='';attemptMessage='';message('');lastEmail=identity.email||null}
-      signInForm.hidden=emailNote.hidden=signed;signedIn.hidden=profileForm.hidden=!signed;
+      google.hidden=signInForm.hidden=emailNote.hidden=signed;signedIn.hidden=profileForm.hidden=!signed;
       connection.textContent=signed?'SIGNED IN · VERIFIED BETA':'Sign in to save verified laps across devices.';
       identityText.textContent=identity.email||'Signed in';
       const [boardResult,meResult]=await Promise.allSettled([api.leaderboard(),signed?api.me():Promise.resolve(null)]);if(request!==generation)return false;
@@ -115,6 +116,7 @@ export function createCompetitionUI({api,onStart,trackId}){
     finally{pending=false;controls()}
   }
   signInForm.addEventListener('submit',event=>{event.preventDefault();void action(async()=>{send.textContent='SENDING LINK…';try{await api.sendSignInLink(email.input.value.trim())}finally{send.textContent='SEND SIGN-IN LINK'}},'Check your email for the sign-in link. Open it in this browser to finish signing in.')});
+  google.addEventListener('click',()=>void action(async()=>{google.textContent='OPENING GOOGLE…';try{await api.signInWithGoogle()}finally{google.textContent='CONTINUE WITH GOOGLE'}}));
   name.input.addEventListener('input',()=>{dirtyName=true});
   profileForm.addEventListener('submit',event=>{event.preventDefault();void action(async()=>{save.textContent='SAVING…';try{profile=await api.saveProfile(name.input.value.trim());dirtyName=false;return await refresh()}finally{save.textContent=profile?'UPDATE DRIVER NAME':'SAVE DRIVER NAME'}},'Driver name saved. Your next verified lap is ready.')});
   signOut.addEventListener('click',()=>void action(async()=>{++generation;await api.signOut();profile=null;signed=false;bestTime.textContent='--:--.---';await refresh()},'Signed out. Practice is still open.'));

@@ -8,6 +8,8 @@ import {createDrivingFeel} from './driving-feel.js';
 import {setupId,bestLapKey} from './vehicle-setup.js';
 import {createCompetitionClient} from './competition-client.js';
 import {createCompetitionUI} from './competition-ui.js';
+import {createRoomClient} from './room-client.js';
+import {createRoomsUI} from './rooms-ui.js';
 import {createRecordedAttempt} from './competition-recording.js';
 import { clamp, wrap, formatTime, sampleTrack, nearestTrack, createVehicle, stepVehicle, resolveTrackWall, updateProgress, collideVehicles, getAIControls } from './physics.js';
 
@@ -42,6 +44,9 @@ const competitionUI=createCompetitionUI({api:competition,trackId:track.id,onStar
   if(generation!==verifiedStartGeneration||!$('leaderboard-dialog').open)throw new Error('Attempt cancelled. Start a new one when ready.');
   $('leaderboard-dialog').close();pendingVerifiedTicket=ticket;startRace();
 }});
+const roomClient=createRoomClient({api:competition});
+const roomsUI=createRoomsUI({api:competition,client:roomClient,onAccount:()=>openDialog('leaderboard-dialog')});
+let roomRaceActive=false,roomRaceStartAt=0,roomRaceResults=[];
 let motionSetting=storage.get('camera-effects','full');
 if(!['full','subtle','off'].includes(motionSetting))motionSetting='full';
 const drivingFeel=createDrivingFeel(),smoothCamera=new THREE.Vector3();
@@ -117,17 +122,18 @@ const audio={enabled:false,ctx:null,oscillators:[],gain:null,wind:null,filter:nu
 function notify(text,duration=2.5){$('race-message').textContent=text;$('race-message').classList.add('show');messageRemaining=duration}
 function gearInfo(){const forward=player.vx*Math.sin(player.yaw)+player.vz*Math.cos(player.yaw);if(forward<-.7)return{gear:'R',rpm:.35};if(player.speed<1)return{gear:state==='menu'?'N':'1',rpm:.25};const thresholds=[0,12,23,34,45,55,65,75,91];let gear=1;while(gear<8&&player.speed>thresholds[gear])gear++;return{gear,rpm:clamp(.3+(player.speed-thresholds[gear-1])/(thresholds[gear]-thresholds[gear-1])*.7,.2,1)}}
 
-function resetGrid({verifiedTicket=null}={}){
+function resetGrid({verifiedTicket=null,roomPlayers=null,roomSelfId=null}={}){
   pendingVerifiedTicket=null;
   clearInputs();pendingMobileStart=rotationPaused=false;showRotatePrompt(false);
-  verifiedSession=null;activeSetup=verifiedTicket?'balanced':selectedSetup;personalBest=Number(storage.get(bestLapKey(track.id,activeSetup),'Infinity'));drivingFeel.reset();
+  verifiedSession=null;roomRaceActive=!!roomPlayers;roomRaceResults=[];activeSetup=verifiedTicket?'balanced':selectedSetup;personalBest=Number(storage.get(bestLapKey(track.id,activeSetup),'Infinity'));drivingFeel.reset();
   for(const c of cars){scene.remove(c.mesh);disposeCar(c.mesh)}
-  cars=[];mode=verifiedTicket?'time':$('mode-select').value;difficulty=$('difficulty-select').value;
-  const total=mode==='race'?8:1;
+  cars=[];mode=roomRaceActive?'room':verifiedTicket?'time':$('mode-select').value;difficulty=$('difficulty-select').value;
+  const total=roomRaceActive?roomPlayers.length:mode==='race'?8:1;
   for(let i=0;i<total;i++){
-    const isPlayer=i===total-1,gridOffset=mode==='race'?-8-i*14:-8;
-    const car=createVehicle(track,track.start+gridOffset,mode==='race'?(i%2===0?-1.6:1.6):0);
-    car.progress=gridOffset;car.index=i;car.isPlayer=isPlayer;car.name=isPlayer?'YOU':teamNames[i];car.color=isPlayer?selectedColor:teamColors[i];car.aiLane=i%2===0?-1.6:1.6;car.targetLane=car.aiLane;car.aiSkill=.96+(i%3)*.018;car.stuckTime=0;
+    const roomEntry=roomRaceActive?roomPlayers[i]:null,isPlayer=roomRaceActive?roomEntry.id===roomSelfId:i===total-1,gridOffset=roomRaceActive?-8-roomEntry.index*14:mode==='race'?-8-i*14:-8;
+    const car=createVehicle(track,track.start+gridOffset,roomRaceActive?(roomEntry.index%2===0?-1.6:1.6):mode==='race'?(i%2===0?-1.6:1.6):0);
+    car.progress=gridOffset;car.index=i;car.isPlayer=isPlayer;car.name=roomRaceActive?roomEntry.driver:isPlayer?'YOU':teamNames[i];car.color=roomRaceActive?roomEntry.color:isPlayer?selectedColor:teamColors[i];car.aiLane=i%2===0?-1.6:1.6;car.targetLane=car.aiLane;car.aiSkill=.96+(i%3)*.018;car.stuckTime=0;
+    if(roomRaceActive){car.roomId=roomEntry.id;car.roomIndex=roomEntry.index;car.roomRemote=!isPlayer;car.x=roomEntry.grid.x;car.z=roomEntry.grid.z;car.yaw=roomEntry.grid.yaw;car.road=nearestTrack(track,car.x,car.z);car.previousS=car.road.s;car.progress=gridOffset;car.lap=1;car.lapStart=0;car.lapTimes=[];car.finished=false}
     car.setup=isPlayer?activeSetup:'balanced';car.mesh=buildCar(car.color,isPlayer?27:11+i*7);scene.add(car.mesh);cars.push(car);if(isPlayer)player=car;
   }
   if(verifiedTicket)verifiedSession=createRecordedAttempt(verifiedTicket,player);
@@ -135,7 +141,7 @@ function resetGrid({verifiedTicket=null}={}){
   raceTime=0;sessionBest=Infinity;countdown=0;accumulator=0;messageRemaining=0;$('race-message').classList.remove('show');
   $('finish-card').hidden=true;$('start-lights').hidden=true;$('menu-card').hidden=false;
   document.body.classList.remove('racing');document.body.classList.add('on-title');$('session-tag').innerHTML='<i></i> ON THE GRID';
-  $('lap-total').textContent=mode==='race'?'/ 03':'/ ∞';
+  $('lap-total').textContent=mode==='race'||mode==='room'?'/ 03':'/ ∞';
   const facts=document.querySelectorAll('.menu-facts b');facts[0].textContent=mode==='race'?'03':'∞';facts[1].textContent=String(total).padStart(2,'0');
   $('mode-button').innerHTML=(mode==='race'?'GRAND PRIX':mode==='time'?'TIME TRIAL':'FREE DRIVE')+' <span>⌄</span>';
   $('menu-card').querySelector('p').textContent=mode==='race'?'Race the waterfront. Chase the last light.':mode==='time'?'Just you, Jewel Lake, and the clock.':'A sunset, a lakeside road, and the freedom to drive.';
@@ -150,11 +156,12 @@ function startRace(){
 function startRaceNow(){
   const verifiedTicket=pendingVerifiedTicket;pendingVerifiedTicket=null;
   resetGrid({verifiedTicket});keys.clear();document.body.classList.add('racing');document.body.classList.remove('on-title');$('menu-card').hidden=true;
-  state='countdown';countdown=0;$('start-lights').hidden=false;$('session-tag').innerHTML='<i></i> FORMATION COMPLETE';
+  state='countdown';countdown=0;$('start-lights').hidden=false;$('session-tag').innerHTML='<i></i> '+(roomRaceActive?'PRIVATE ROOM · UNRANKED':'FORMATION COMPLETE');
   [...$('start-lights').querySelectorAll('i')].forEach(l=>l.classList.remove('lit'));
   canvas.focus({preventScroll:true});if(audio.enabled)audio.start();
 }
 function recover(car,automatic=false){
+  if(roomRaceActive&&car.isPlayer){notify('RECOVERY IS DISABLED IN PRIVATE ROOMS',2);return}
   if(car.isPlayer&&verifiedSession){invalidateVerified('Recovery invalidates a beta attempt. Start a new one.');return}
   const road=nearestTrack(track,car.x,car.z),p=sampleTrack(track,road.s,car.isPlayer?0:car.aiLane);
   car.x=p.x;car.z=p.z;car.yaw=p.yaw;car.vx=p.tx*(automatic?18:0);car.vz=p.tz*(automatic?18:0);car.speed=automatic?18:0;car.steer=0;car.road=nearestTrack(track,car.x,car.z);car.previousS=p.s;car.recovered=2;car.stuckTime=0;
@@ -189,6 +196,13 @@ function aiInput(car,dt){
 
 function simulate(dt){
   if(state==='countdown'){
+    if(roomRaceActive){
+      const remaining=Math.max(0,(roomRaceStartAt-roomClient.serverNow())/1000),count=Math.min(5,Math.max(0,Math.ceil(remaining)));
+      countdown=5-remaining;
+      [...$('start-lights').querySelectorAll('i')].forEach((l,i)=>l.classList.toggle('lit',i>=count&&count>0));
+      if(remaining<=0){state='racing';countdown=5;$('start-lights').hidden=true;$('session-tag').innerHTML='<i></i> PRIVATE ROOM · UNRANKED';audio.beep(840,.25);notify('LIGHTS OUT · PRIVATE ROOM',3)}
+      return;
+    }
     const before=Math.floor(countdown/.65);countdown+=dt;const count=Math.min(5,Math.floor(countdown/.65));
     if(count!==before&&count<=5&&count>0){audio.beep(420,.08);[...$('start-lights').querySelectorAll('i')].forEach((l,i)=>l.classList.toggle('lit',i<count));world.lamps.forEach((l,i)=>l.material.color.set(i<count?'#f3392c':'#351b1e'))}
     if(countdown>4.45){state='racing';$('start-lights').hidden=true;$('session-tag').innerHTML='<i></i> '+(verifiedSession?'VERIFIED BETA · OUTLAP':mode==='race'?'RACE IN PROGRESS':mode==='time'?'TIME TRIAL':'FREE DRIVE');world.lamps.forEach(l=>l.material.color.set('#351b1e'));audio.beep(840,.25);notify(verifiedSession?'BETA OUTLAP · NEXT LAP IS TIMED':'LIGHTS OUT. FULL SEND.',3)}
@@ -202,6 +216,15 @@ function simulate(dt){
     if(before==='outlap'&&stage==='timed'){player.lapStart=raceTime;$('session-tag').innerHTML='<i></i> VERIFIED BETA · FLYING LAP';notify('FLYING LAP · MAKE IT COUNT',3)}
     if(stage==='invalid')invalidateVerified(verifiedSession.run.invalidReason);
     else if(stage==='complete')finishVerified();
+    return;
+  }
+  if(roomRaceActive){
+    if(!player.finished){
+      stepVehicle(player,input,dt,track.halfWidth);player.road=nearestTrack(track,player.x,player.z,player.road.index);
+      resolveTrackWall(player,track);updateProgress(player,track,raceTime,dt);
+      if(player.lap>3){player.finished=true;player.finishTime=raceTime;player.throttle=0;player.brake=0;player.boost=false;notify('CHEQUERED FLAG · WAITING FOR YOUR GRID',3)}
+      roomClient.sendState(player);
+    }
     return;
   }
   for(const car of cars){
@@ -238,6 +261,7 @@ function simulate(dt){
 
 function sortedCars(){return [...cars].sort((a,b)=>a.finished&&b.finished?a.finishTime-b.finishTime:a.finished?-1:b.finished?1:b.progress-a.progress)}
 function finishRace(){
+  if(roomRaceActive)return;
   const labels=$('finish-card').querySelectorAll('.finish-stats small');labels[0].textContent='POSITION';labels[1].textContent='RACE TIME';labels[2].textContent='BEST LAP';
   state='finished';clearInputs();$('finish-card').hidden=false;$('session-tag').innerHTML='<i></i> CHEQUERED FLAG';
   const pos=sortedCars().indexOf(player)+1;
@@ -247,6 +271,18 @@ function finishRace(){
   notify('FINISH · P'+pos,3);audio.beep(1000,.35);updateUI();
 }
 
+function finishRoomRace(results){
+  if(!roomRaceActive||state==='finished')return;
+  roomRaceResults=results;state='finished';clearInputs();$('start-lights').hidden=true;$('finish-card').hidden=false;
+  const own=results.find(result=>result.id===roomClient.selfId),position=own?.position;
+  const labels=$('finish-card').querySelectorAll('.finish-stats small');labels[0].textContent='ROOM PLACE';labels[1].textContent='ROOM TIME';labels[2].textContent='STATUS';
+  $('finish-title').textContent=own?.dnf?'RACE COMPLETE.':position===1?'ROOM WINNER.':position<=3?'PRIVATE ROOM PODIUM.':'CHEQUERED FLAG.';
+  $('finish-subtitle').textContent='Private room result · unranked · not submitted to the prize leaderboard.';
+  $('finish-position').textContent=own?.dnf?'DNF':String(position||'—').padStart(2,'0')+' / '+String(results.filter(result=>!result.dnf).length).padStart(2,'0');
+  $('finish-time').textContent=own&&!own.dnf?formatTime(own.timeMs/1000):'—:—.---';$('finish-best').textContent='UNRANKED';
+  $('session-tag').innerHTML='<i></i> PRIVATE ROOM · COMPLETE';notify('ROOM RESULTS ARE READY',3);updateUI();
+}
+
 function verifiedFinishCard(title,description){
   state='finished';clearInputs();$('start-lights').hidden=true;$('finish-card').hidden=false;
   $('finish-title').textContent=title;$('finish-subtitle').textContent=description;
@@ -254,6 +290,25 @@ function verifiedFinishCard(title,description){
   $('finish-position').textContent='BETA';$('finish-time').textContent=verifiedSession?.run.result?formatTime(verifiedSession.run.result.timeMs/1000):'--:--.---';$('finish-best').textContent='UNSAVED';
   $('session-tag').innerHTML='<i></i> BETA · PRIZES NOT ACTIVE';
 }
+function startRoomRace(event){
+  if(mapMode!=='classic'||!Array.isArray(event.players)||!event.players.some(p=>p.id===roomClient.selfId))return;
+  state='room-transition';if($('rooms-dialog').open)$('rooms-dialog').close();
+  roomRaceStartAt=event.startAt;resetGrid({roomPlayers:event.players,roomSelfId:roomClient.selfId});
+  document.body.classList.add('racing');document.body.classList.remove('on-title');$('menu-card').hidden=true;
+  state='countdown';countdown=0;$('start-lights').hidden=false;$('session-tag').innerHTML='<i></i> PRIVATE ROOM · UNRANKED';
+  [...$('start-lights').querySelectorAll('i')].forEach(l=>l.classList.remove('lit'));
+  if(audio.enabled)audio.start();canvas.focus({preventScroll:true});
+}
+roomClient.onEvent(event=>{
+  if(event.type==='race')startRoomRace(event);
+  if(event.type==='connected'&&['countdown','racing'].includes(event.room?.phase)&&event.room.raceId)startRoomRace(event.room);
+  if(event.type==='results'&&event.raceId===roomClient.snapshot?.raceId){
+    roomRaceResults=event.results;
+    for(const result of event.results){const car=cars.find(entry=>entry.roomId===result.id);if(car&&!result.dnf){car.finished=true;car.finishTime=result.timeMs/1000}}
+    if(event.complete)finishRoomRace(event.results);
+  }
+  if(event.type==='closed'&&roomRaceActive){roomRaceActive=false;state='menu';$('finish-card').hidden=true;resetGrid();notify('ROOM CONNECTION ENDED · BACK ON THE GRID',3)}
+});
 function invalidateVerified(reason){
   if(!verifiedSession||state==='finished')return;
   verifiedSession.invalidate(reason);verifiedFinishCard('ATTEMPT ENDED.',reason);competitionUI.showAttemptStatus(reason);updateUI();
@@ -280,6 +335,7 @@ async function submitVerified(session){
 
 function updateModels(dt){
   for(const car of cars){
+    if(roomRaceActive&&car.roomRemote){const remote=roomClient.sampleRemote(car.roomId);if(remote){Object.assign(car,remote);car.road=nearestTrack(track,car.x,car.z,car.road?.index)}}
     car.mesh.position.set(car.x,(world.roadHeight||0)+.035+((car.road.distance>9&&car.speed>5)?Math.sin(raceTime*70)*.025:0),car.z);car.mesh.rotation.set(0,car.yaw,clamp(car.steer*car.speed*.0007,-.05,.05));
     car.mesh.userData.wheels.forEach((wheel,i)=>{wheel.rotation.x=(wheel.rotation.x+car.speed*dt/(car.mesh.userData.wheelRadius||.47))%(Math.PI*2);if(i%2===1)wheel.rotation.y=-car.steer*.2});
     car.mesh.userData.rearLight.visible=car.brake>.1||Math.floor(raceTime/.35)%2===0;
@@ -331,10 +387,10 @@ function updateUI(){
   $('pause-button').disabled=state==='menu'||state==='finished';
   $('map-button').disabled=state==='countdown';
   $('position').textContent=String(pos).padStart(2,'0');document.querySelector('.race-stat small').textContent='/ '+String(cars.length).padStart(2,'0');
-  $('lap').textContent=String(Math.min(player.lap,mode==='race'?3:999)).padStart(2,'0');
+  $('lap').textContent=String(Math.min(player.lap,mode==='race'||mode==='room'?3:999)).padStart(2,'0');
   $('lap-time').textContent=formatTime(state==='finished'?player.lapTimes.at(-1)||0:raceTime-player.lapStart);$('best-time').textContent=formatTime(personalBest);
   $('speed').textContent=String(Math.round(player.speed*3.6)).padStart(3,'0');$('gear').textContent=gear.gear;
-  $('mobile-lap').textContent=player.lap+'/'+(mode==='race'?'3':'∞');$('mobile-position').textContent=pos+'/'+cars.length;$('mobile-speed').textContent=Math.round(player.speed*3.6);$('mobile-gear').textContent=gear.gear;
+  $('mobile-lap').textContent=player.lap+'/'+(mode==='race'||mode==='room'?'3':'∞');$('mobile-position').textContent=pos+'/'+cars.length;$('mobile-speed').textContent=Math.round(player.speed*3.6);$('mobile-gear').textContent=gear.gear;
   $('mobile-energy').textContent=Math.round(player.energy)+'%';$('mobile-energy-bar').style.width=player.energy+'%';$('mobile-energy-bar').style.background=player.boost?'#b8f4fb':'#edcc85';
   $('throttle-meter').style.height=player.throttle*100+'%';$('brake-meter').style.height=player.brake*100+'%';
   $('ers-value').textContent=Math.round(player.energy)+'%';$('ers-bar').style.width=player.energy+'%';$('ers-bar').style.background=player.boost?'#ffffff':'var(--acid)';
@@ -371,26 +427,29 @@ function resize(){const rect=canvas.getBoundingClientRect();world.resize(rect.wi
 new ResizeObserver(resize).observe(canvas);
 function cycleCamera(){if(state==='overview')toggleOverview();camMode=(camMode+1)%3;$('camera-label').textContent=['ARCADE CAM','COCKPIT CAM','CHASE CAM'][camMode];updateCamera(1,true);storage.set('camera',camMode)}
 function togglePause(){
+  if(roomRaceActive){clearInputs();notify('PRIVATE ROOM RACES CANNOT BE PAUSED',2);return}
   if(verifiedSession&&(state==='racing'||state==='countdown')){invalidateVerified('Pausing or losing focus ends a beta attempt. Start a new one.');return}
   clearInputs();
   if(state==='paused'&&$('pause-dialog').open){if(portraitPhone()){rotationPaused=true;$('pause-dialog').close();syncOrientation();return}$('pause-dialog').close();state=pausedFrom;canvas.focus({preventScroll:true});return}
   if(state==='racing'||state==='countdown'){pausedFrom=state;state='paused';$('pause-dialog').showModal()}
 }
 function openDialog(id){
+  if(roomRaceActive&&(state==='racing'||state==='countdown')){notify('ROOM CONTROLS ARE LOCKED DURING THE RACE',2);return}
   if(document.querySelector('dialog[open]'))return;
   if(verifiedSession&&(state==='racing'||state==='countdown'))invalidateVerified('Opening a menu ended the beta attempt. Start again when ready.');
   if(id==='leaderboard-dialog')$('board-personal-best').textContent=personalBest>0?formatTime(personalBest):'--:--.---';
   dialogReturn=state;if(state==='racing'||state==='countdown')state='paused';clearInputs();$(id).showModal();
   if(id==='leaderboard-dialog')void competitionUI.open();
+  if(id==='rooms-dialog')void roomsUI.open();
   if(id==='garage-dialog')garage.open({color:selectedColor,setup:selectedSetup,locked:dialogReturn!=='menu'&&dialogReturn!=='finished'});
 }
 for(const dialog of document.querySelectorAll('dialog')){
   dialog.querySelectorAll('.close-button').forEach(b=>b.addEventListener('click',()=>dialog.close()));
   dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});
-  dialog.addEventListener('close',()=>{if(dialog.id==='leaderboard-dialog')verifiedStartGeneration++;if(dialog.id==='garage-dialog')garage.close();if(dialog.id==='pause-dialog'){if(state==='paused'&&!rotationPaused&&!document.querySelector('dialog[open]'))state=pausedFrom}else{if(state==='paused')state=dialogReturn;if(state==='menu'&&!pendingMobileStart)resetGrid()}clearInputs();syncOrientation()});
+  dialog.addEventListener('close',()=>{if(dialog.id==='leaderboard-dialog')verifiedStartGeneration++;if(dialog.id==='garage-dialog')garage.close();if(dialog.id==='pause-dialog'){if(state==='paused'&&!rotationPaused&&!document.querySelector('dialog[open]'))state=pausedFrom}else{if(state==='paused')state=dialogReturn;if(state==='menu'&&!pendingMobileStart&&!roomClient.snapshot)resetGrid()}clearInputs();syncOrientation()});
 }
 $('start-button').addEventListener('click',startRace);
-$('race-again').addEventListener('click',()=>{state='menu';resetGrid()});
+$('race-again').addEventListener('click',()=>{if(roomRaceActive&&roomClient.snapshot){openDialog('rooms-dialog');return}state='menu';roomClient.leave();resetGrid()});
 $('settings-button').addEventListener('click',()=>openDialog('settings-dialog'));
 $('setup-button').addEventListener('click',()=>openDialog('settings-dialog'));
 $('mode-button').addEventListener('click',()=>{$('mode-select').focus();openDialog('settings-dialog')});
@@ -398,6 +457,7 @@ $('map-choice').addEventListener('click',()=>{openDialog('settings-dialog');$('m
 $('garage-nav').addEventListener('click',()=>openDialog('garage-dialog'));
 $('garage-menu').addEventListener('click',()=>openDialog('garage-dialog'));
 $('leaderboard-menu').addEventListener('click',()=>openDialog('leaderboard-dialog'));
+$('rooms-menu').addEventListener('click',()=>openDialog('rooms-dialog'));
 $('title-help').addEventListener('click',()=>openDialog('guide-dialog'));
 $('board-practice').addEventListener('click',()=>{$('leaderboard-dialog').close();$('mode-select').value='time';startRace()});
 for(const [id,label,dialog] of [['garage-shortcut','GARAGE','garage-dialog'],['setup-shortcut','SETUP','settings-dialog'],['help-shortcut','HELP','guide-dialog']]){const b=document.createElement('button');b.id=id;b.className='glass-icon';b.textContent=label;b.setAttribute('aria-label','Open '+label.toLowerCase());b.addEventListener('click',()=>openDialog(dialog));document.querySelector('.session-actions').appendChild(b)}
@@ -466,7 +526,9 @@ function frame(timestamp){
   if(debugRender)canvas.dataset.renderStats=JSON.stringify({calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,fov:camera.fov,effects:effectiveMotion(),boost:player.boost,setup:activeSetup});
 }
 applyMobileControls();resetGrid();resize();
-if(new URLSearchParams(location.search).get('auth')==='callback')void competition.ready().then(()=>openDialog('leaderboard-dialog')).catch(error=>{openDialog('leaderboard-dialog');competitionUI.showAttemptStatus(error.message)});
+const launchParams=new URLSearchParams(location.search),inviteCode=launchParams.get('room');
+if(inviteCode&&/^[A-HJ-NP-Z2-9]{8}$/i.test(inviteCode)){openDialog('rooms-dialog');void roomsUI.open()}
+else if(launchParams.get('auth')==='callback')void competition.ready().then(()=>openDialog('leaderboard-dialog')).catch(error=>{openDialog('leaderboard-dialog');competitionUI.showAttemptStatus(error.message)});
 requestAnimationFrame(timestamp=>{lastTime=timestamp;frame(timestamp);$('loading').style.opacity='0';setTimeout(()=>$('loading').hidden=true,550)});
 // Read-only telemetry is useful for race replays, accessibility tools, and QA.
 window.apex={get telemetry(){return{state,mode,time:raceTime,position:sortedCars().indexOf(player)+1,lap:player.lap,speed:player.speed*3.6,energy:player.energy,roadOffset:player.road.offset,progress:player.progress,trackLength:track.length,drivers:cars.map(c=>({name:c.name,speed:c.speed*3.6,offset:c.road.offset,progress:c.progress,lap:c.lap}))}},get renderer(){return renderer.info.render}};
