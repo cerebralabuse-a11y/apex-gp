@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "supabaseUrl": "https://ozrvhsykznybckjimczj.supabase.co",
+  "publishableKey": "sb_publishable__5l1_imeW2MXPIAE8avtnA_nv9yAonk",
+  "apiUrl": "https://ozrvhsykznybckjimczj.supabase.co/functions/v1/competition",
+  "roomServerUrl": "https://apex-gp-rooms.cerebralabuse.workers.dev"
+}
+

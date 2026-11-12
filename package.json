@@ -5,9 +5,21 @@
   "scripts": {
     "dev": "node server.mjs",
     "build": "node build.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node scripts/check-verification.mjs && node --test tests/*.test.mjs",
+    "verifier:dev": "wrangler dev workers/verification-local.mjs --local --ip 127.0.0.1 --port 8790 --compatibility-date 2026-11-07",
+    "rooms:dev": "wrangler dev --config wrangler.rooms.jsonc --local --ip 127.0.0.1 --port 8791",
+    "verifier:check": "node scripts/check-verification.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.119.0",
     "@vercel/analytics": "^2.0.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.15",
+    "esbuild": "0.28.2",
+    "miniflare": "5.20261104.0-beta",
+    "supabase": "3.0.0",
+    "wrangler": "4.158.0",
+    "ws": "8.21.0"
   }
 }

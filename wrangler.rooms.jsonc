@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "apex-gp-rooms",
+  "account_id": "8b305bc9e1b846c2c895f2032dc3b0db",
+  "main": "workers/rooms.mjs",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "RaceRoom" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RaceRoom"] }],
+  "vars": {
+    "SUPABASE_URL": "https://ozrvhsykznybckjimczj.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable__5l1_imeW2MXPIAE8avtnA_nv9yAonk",
+    "GAME_ORIGINS": "https://apex-gp-kohl.vercel.app,https://apex-gp-git-codex-private-ba4907-aayush-sonis-projects-b4cb9b45.vercel.app"
+  },
+  "observability": { "enabled": true, "head_sampling_rate": 0.01 }
+}
+
