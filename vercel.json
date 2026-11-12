@@ -4,10 +4,7 @@
   "outputDirectory": "dist",
   "functions": {
     "server.mjs": {
-      "includeFiles": [
-        "dist/**",
-        "verification-lab/**"
-      ]
+      "includeFiles": "dist/**"
     }
   }
 }
