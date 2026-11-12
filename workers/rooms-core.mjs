@@ -6,7 +6,7 @@ export const MIN_PLAYERS=2,MAX_PLAYERS=8;
 const CODE=/^[A-HJ-NP-Z2-9]{8}$/,UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const COLORS=['#a2cf3e','#37c6ca','#e7a129','#4c68d9','#eeeecc','#ab82ca','#eb733f','#4caa75'];
-const ORIGINS=['https://apex-gp-kohl.vercel.app','http://127.0.0.1:4173','http://localhost:4173','http://127.0.0.1:4190','http://localhost:4190','http://127.0.0.1:5188','http://localhost:5188'];
+const DEFAULT_ORIGINS=['https://apex-gp-kohl.vercel.app','https://apex-gp-git-codex-private-ba4907-aayush-sonis-projects-b4cb9b45.vercel.app','http://127.0.0.1:4173','http://localhost:4173','http://127.0.0.1:4190','http://localhost:4190','http://127.0.0.1:5188','http://localhost:5188'];
 const json=(status,data,headers={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
 const randomCode=()=>Array.from(crypto.getRandomValues(new Uint8Array(8)),v=>ALPHABET[v%32]).join('');
 const randomTicket=()=>Array.from(crypto.getRandomValues(new Uint8Array(24)),v=>v.toString(16).padStart(2,'0')).join('');
@@ -32,9 +32,10 @@ async function authenticate(request,env){
 // Dependency injection is for tests only. The deployed export always uses Auth.
 export function createRoomsWorker({identify=authenticate}={}){
   return{async fetch(request,env){
-    const origin=request.headers.get('Origin'),cors={Vary:'Origin',...(ORIGINS.includes(origin)?{'Access-Control-Allow-Origin':origin}:{})};
+    const origins=(env.GAME_ORIGINS||DEFAULT_ORIGINS.join(',')).split(',').map(value=>value.trim()).filter(Boolean);
+    const origin=request.headers.get('Origin'),cors={Vary:'Origin',...(origins.includes(origin)?{'Access-Control-Allow-Origin':origin}:{})};
     try{
-      if(origin!==null&&!ORIGINS.includes(origin))reject(403,'origin_denied','This game address is not enabled for private rooms.');
+      if(origin!==null&&!origins.includes(origin))reject(403,'origin_denied','This game address is not enabled for private rooms.');
       const url=new URL(request.url),join=/^\/rooms\/([A-HJ-NP-Z2-9]{8})\/join$/.exec(url.pathname),connect=/^\/rooms\/([A-HJ-NP-Z2-9]{8})\/connect$/.exec(url.pathname);
       if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{...cors,'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'authorization, content-type','Access-Control-Max-Age':'600'}});
       if(url.pathname==='/status'&&request.method==='GET')return json(200,{enabled:true,minPlayers:MIN_PLAYERS,maxPlayers:MAX_PLAYERS,ranked:false,trackId:track.id},cors);
@@ -201,3 +202,4 @@ export class RaceRoom{
   async webSocketError(socket){await this.ready;await this.disconnect(socket);try{socket.close(1011,'Connection interrupted')}catch{}}
   async alarm(){await this.ready;if(this.room){await this.prune();await this.schedule()}else await this.ctx.storage.deleteAll()}
 }
+

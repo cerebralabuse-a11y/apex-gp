@@ -9,7 +9,9 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RaceRoom"] }],
   "vars": {
     "SUPABASE_URL": "https://ozrvhsykznybckjimczj.supabase.co",
-    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable__5l1_imeW2MXPIAE8avtnA_nv9yAonk"
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable__5l1_imeW2MXPIAE8avtnA_nv9yAonk",
+    "GAME_ORIGINS": "https://apex-gp-kohl.vercel.app,https://apex-gp-git-codex-private-ba4907-aayush-sonis-projects-b4cb9b45.vercel.app"
   },
   "observability": { "enabled": true, "head_sampling_rate": 0.01 }
 }
+

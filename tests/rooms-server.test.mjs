@@ -27,6 +27,16 @@ test('room HTTP boundary never accepts forged identities and requires configured
   assert.equal((await send('/rooms/ABCDEFGH/connect',{},'GET')).status,426);
 });
 
+test('room CORS can allow exact deployment origins without opening access to other sites',async()=>{
+  const handler=createRoomsWorker(),env={SUPABASE_URL:'https://project.supabase.co',SUPABASE_PUBLISHABLE_KEY:'public',GAME_ORIGINS:'https://preview.example, https://game.example'};
+  const response=await handler.fetch(new Request('https://rooms.test/rooms',{method:'POST',headers:{Origin:'https://preview.example','Content-Type':'application/json'},body:'{}'}),env);
+  assert.equal(response.status,401);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'),'https://preview.example');
+  const rejected=await handler.fetch(new Request('https://rooms.test/rooms',{method:'POST',headers:{Origin:'https://untrusted.example','Content-Type':'application/json'},body:'{}'}),env);
+  assert.equal(rejected.status,403);
+  assert.equal(rejected.headers.get('Access-Control-Allow-Origin'),null);
+});
+
 test('real workerd rooms enforce 2–8 players, ready host start, isolated relay, one-use tickets and reconnect',async t=>{
   const bundled=await build({stdin:{contents:`import {RaceRoom} from './workers/rooms.mjs'; import {createRoomsWorker} from './workers/rooms-core.mjs'; export {RaceRoom}; export default createRoomsWorker({identify:async request=>{const token=request.headers.get('Authorization')||''; const n=Number(token.replace('Bearer test-',''));if(!Number.isInteger(n)||n<1||n>30)throw Object.assign(new Error('Sign in required'),{status:401,code:'sign_in_required'});return{id:'00000000-0000-4000-8000-'+String(n).padStart(12,'0'),driver:'TEST_'+n}}});`,resolveDir:process.cwd()},bundle:true,format:'esm',platform:'browser',external:['cloudflare:workers'],write:false});
   const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:bundled.outputFiles[0].text,compatibilityDate:'2026-11-01',durableObjects:{ROOMS:{className:'RaceRoom',useSQLite:true}},log:new Log(LogLevel.ERROR)}));
@@ -63,3 +73,4 @@ test('room lifecycle times out disconnected racers, derives result time and retu
   assert.equal(room.room.phase,'finished');assert.equal(room.room.results.find(p=>p.id===uid(2)).dnf,true);const winner=room.room.results.find(p=>p.id===uid(1));assert.equal(winner.position,1);assert.ok(winner.timeMs>=10000);assert.equal(storedWrites,3);
   await room.webSocketMessage(socket,JSON.stringify({type:'reset'}));assert.equal(room.room.phase,'lobby');assert.equal(room.room.players.length,1);assert.equal(room.room.players[0].ready,false);
 });
+
