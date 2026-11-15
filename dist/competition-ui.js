@@ -13,6 +13,7 @@ function field(labelText,type,name){
 
 export function createCompetitionUI({api,onStart,trackId}){
   const dialog=document.getElementById('leaderboard-dialog'),table=dialog.querySelector('.future-board'),tbody=table.tBodies[0];
+  const playerAccount=document.getElementById('player-account'),playerAccountLabel=document.getElementById('player-account-label');
   const entry=element('section','competition-entry');entry.setAttribute('aria-label','Verified beta entry');
   const account=element('div','competition-account'),launch=element('div','competition-launch');
   account.append(element('span','competition-kicker','YOUR PLACE ON THE GRID'),element('h3','','Race under your own name.'));
@@ -52,6 +53,28 @@ export function createCompetitionUI({api,onStart,trackId}){
 
   let enabled=false,signed=false,profile=null,pending=false,generation=0,lastEmail=null,attemptMessage='',dirtyName=false;
   function message(text,isError=false){entryStatus.textContent=text;entryStatus.dataset.error=String(isError)}
+  function renderPlayerAccount(name){
+    playerAccountLabel.textContent=name||'SIGN IN WITH GOOGLE';
+    playerAccount.setAttribute('aria-label',name?`Signed in as ${name}. Open account settings.`:'Sign in with Google');
+    playerAccount.title=name?`Signed in as ${name}. Open account settings.`:'Sign in with Google';
+    playerAccount.classList.toggle('is-signed-in',!!name);
+  }
+  let accountGeneration=0,accountBusy=false;
+  async function refreshPlayerAccount(){
+    const request=++accountGeneration;
+    try{
+      const config=await api.ready();if(request!==accountGeneration)return;
+      playerAccount.disabled=!config.enabled;
+      if(!config.enabled){signed=false;profile=null;renderPlayerAccount('ONLINE SIGN-IN UNAVAILABLE');return}
+      const identity=await api.identity();if(request!==accountGeneration)return;
+      signed=!!identity.signedIn;
+      const fallback=identity.signedIn?(identity.email?.split('@')[0]||'SIGNED IN'):'';
+      renderPlayerAccount(fallback);
+      if(identity.signedIn){
+        try{const me=await api.me();if(request===accountGeneration){profile=me?.profile||null;renderPlayerAccount(profile?.driverName||fallback)}}catch{}
+      }
+    }catch{if(request===accountGeneration){playerAccount.disabled=false;renderPlayerAccount('SIGN IN WITH GOOGLE')}}
+  }
   function controls(){
     google.disabled=send.disabled=save.disabled=signOut.disabled=pending||!enabled;
     email.input.disabled=name.input.disabled=pending||!enabled;
@@ -83,11 +106,13 @@ export function createCompetitionUI({api,onStart,trackId}){
       enabled=!!config.enabled;
       if(!enabled){
         signed=false;profile=null;google.hidden=signInForm.hidden=emailNote.hidden=signedIn.hidden=profileForm.hidden=true;
+        renderPlayerAccount('ONLINE SIGN-IN UNAVAILABLE');playerAccount.disabled=true;
         connection.textContent=config.reason||'Online beta is not configured on this host.';
         emptyBoard('Practice is open.','The online beta is unavailable right now. Your browser-only practice records are still available below.');boardState.textContent='Online beta unavailable.';return false;
       }
       const identity=await api.identity();if(request!==generation)return false;
       signed=!!identity.signedIn;
+      renderPlayerAccount(signed?(identity.email?.split('@')[0]||'SIGNED IN'):'');
       if(lastEmail!==(identity.email||null)){profile=null;dirtyName=false;name.input.value='';attemptMessage='';message('');lastEmail=identity.email||null}
       google.hidden=signInForm.hidden=emailNote.hidden=signed;signedIn.hidden=profileForm.hidden=!signed;
       connection.textContent=signed?'SIGNED IN · VERIFIED BETA':'Sign in to save verified laps across devices.';
@@ -97,6 +122,7 @@ export function createCompetitionUI({api,onStart,trackId}){
       else{emptyBoard('Standings could not load.','Your result has not changed. Use Refresh standings to try again.');boardState.textContent=boardResult.reason?.message||'Standings unavailable.'}
       if(meResult.status==='fulfilled'){
         profile=meResult.value?.profile||null;
+        renderPlayerAccount(signed?(profile?.driverName||identity.email?.split('@')[0]||'SIGNED IN'):'');
         if(!dirtyName)name.input.value=profile?.driverName||'';
         save.textContent=profile?'UPDATE DRIVER NAME':'SAVE DRIVER NAME';
         const personal=meResult.value?.best;bestTime.textContent=tickTime(personal?.timeTicks);
@@ -115,14 +141,24 @@ export function createCompetitionUI({api,onStart,trackId}){
     try{const succeeded=await work();if(success&&succeeded!==false)message(success)}catch(error){message(error.message||'Something went wrong. Please try again.',true)}
     finally{pending=false;controls()}
   }
+  function showAttemptStatus(text){attemptMessage=String(text||'');message(attemptMessage);if(dialog.open)void refresh()}
   signInForm.addEventListener('submit',event=>{event.preventDefault();void action(async()=>{send.textContent='SENDING LINK…';try{await api.sendSignInLink(email.input.value.trim())}finally{send.textContent='SEND SIGN-IN LINK'}},'Check your email for the sign-in link. Open it in this browser to finish signing in.')});
+  playerAccount.addEventListener('click',async()=>{
+    if(accountBusy)return;
+    if(signed){onAccount();return}
+    accountBusy=true;playerAccount.disabled=true;playerAccountLabel.textContent='OPENING GOOGLE…';
+    try{await api.ready();await api.signInWithGoogle()}
+    catch(error){showAttemptStatus(error.message||'Google sign-in could not start.');onAccount()}
+    finally{accountBusy=false;playerAccount.disabled=false;void refreshPlayerAccount()}
+  });
   google.addEventListener('click',()=>void action(async()=>{google.textContent='OPENING GOOGLE…';try{await api.signInWithGoogle()}finally{google.textContent='CONTINUE WITH GOOGLE'}}));
   name.input.addEventListener('input',()=>{dirtyName=true});
   profileForm.addEventListener('submit',event=>{event.preventDefault();void action(async()=>{save.textContent='SAVING…';try{profile=await api.saveProfile(name.input.value.trim());dirtyName=false;return await refresh()}finally{save.textContent=profile?'UPDATE DRIVER NAME':'SAVE DRIVER NAME'}},'Driver name saved. Your next verified lap is ready.')});
   signOut.addEventListener('click',()=>void action(async()=>{++generation;await api.signOut();profile=null;signed=false;bestTime.textContent='--:--.---';await refresh()},'Signed out. Practice is still open.'));
   refreshButton.addEventListener('click',()=>void refresh());
   start.addEventListener('click',()=>{if(start.disabled)return;void action(async()=>{message('Preparing your verified beta attempt…');await onStart()})});
-  api.onAuthChange(()=>setTimeout(()=>{if(dialog.open)void refresh()},0));
+  api.onAuthChange(()=>setTimeout(()=>{void refreshPlayerAccount();if(dialog.open)void refresh()},0));
   controls();
-  return{open:refresh,refresh,showAttemptStatus(text){attemptMessage=String(text||'');message(attemptMessage);if(dialog.open)void refresh()}};
+  void refreshPlayerAccount();
+  return{open:refresh,refresh,refreshPlayerAccount,showAttemptStatus};
 }

@@ -60,3 +60,10 @@ Individual buildings, tree placements and the illustrative composition can be re
 - An actual previous-build comparison at the same camera showed High unchanged at 328 draw calls / 972,756 submitted triangles. Mobile Optimized used the same 328 calls / 743,460 triangles (23.6% fewer), with shadow-map area reduced by 75%. This is a render-work comparison on the desktop preview, not a measured Redmi frame-rate guarantee.
 - Responsive preview verified at 873 x 393 and 568 x 320; portrait handling at 393 x 873. The car stayed at 0 km/h without GAS; native pointer holds activated GAS and ERS together, reaching 290 km/h in the final straight-line boost run. Release cleared the pressed states. Browser console reported no errors.
 - Nineteen automated checks cover the existing circuit/physics/race, pointer combinations and cancellation, adaptive resolution and restoration of full crowd detail. Physical Android/iPhone multi-touch, fullscreen permissions and sustained thermal performance still require device testing.
+
+## Title-screen concept implementation — 15 November 2026
+
+- Reworked the title overlay to use the selected APEX GP concept: oversized racing wordmark, high-contrast Start Race action, rounded purple menu buttons, a visible Google/account capsule, and circuit/race-format controls.
+- Kept the live 3D circuit and car visible under the overlay. Existing start, private-room, leaderboard, garage, settings, help, circuit, and format controls retain their original IDs and handlers.
+- Added a persistent account control outside the title menu. It shows the saved driver name (or Google email prefix) when signed in, opens the existing profile screen, and starts the existing Google OAuth flow when signed out.
+- Visually inspected the desktop composition and a 393 × 873 portrait layout. The menu remains legible, both primary navigation columns fit on portrait, and circuit/format controls remain visible at the bottom. Automated tests were not run for this visual update.
