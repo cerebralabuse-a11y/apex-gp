@@ -38,7 +38,7 @@ let cars=[],player,selectedColor=storage.get('color','#a2cf3e'),personalBest=Num
 let selectedSetup=setupId(storage.get('car-setup','balanced')),activeSetup=selectedSetup;
 let pendingVerifiedTicket=null,verifiedSession=null,submittingVerified=false,verifiedStartGeneration=0;
 const competition=createCompetitionClient();
-const competitionUI=createCompetitionUI({api:competition,trackId:track.id,onStart:async()=>{
+const competitionUI=createCompetitionUI({api:competition,trackId:track.id,onAccount:()=>openDialog('leaderboard-dialog'),onStart:async()=>{
   if(mapMode!=='classic')throw new Error('Verified beta laps use the original map.');
   const generation=++verifiedStartGeneration,ticket=await competition.startAttempt();
   if(generation!==verifiedStartGeneration||!$('leaderboard-dialog').open)throw new Error('Attempt cancelled. Start a new one when ready.');
@@ -359,8 +359,8 @@ function updateCamera(dt,snap=false){
   if(state==='menu'){
     if(!reducedMenuMotion.matches)menuTime+=dt;
     const drift=Math.sin(menuTime*.12)*1.2,narrow=camera.aspect<1;
-    camera.position.set(player.x-fx*(12+drift)-fz*11,4.5,player.z-fz*(12+drift)+fx*11);
-    cameraLook.set(player.x+fz*(narrow?1:6),.65,player.z-fx*(narrow?1:6));camera.lookAt(cameraLook);smoothLook.copy(cameraLook);smoothCamera.copy(camera.position);camera.fov=narrow?55:44;camera.updateProjectionMatrix();
+    camera.position.set(player.x-fx*(10+drift)-fz*9,3.8,player.z-fz*(10+drift)+fx*9);
+    cameraLook.set(player.x+fz*(narrow?1:3.5),.65,player.z-fx*(narrow?1:3.5));camera.lookAt(cameraLook);smoothLook.copy(cameraLook);smoothCamera.copy(camera.position);camera.fov=narrow?55:38;camera.updateProjectionMatrix();
     world.followSun(player.x,player.z);world.sky.position.copy(camera.position);return;
   }
   const feel=drivingFeel.update(dt,player,state==='racing'&&!document.querySelector('dialog[open]'),effectiveMotion());
@@ -384,7 +384,14 @@ function drawMap(){
 }
 function updateUI(){
   const ranking=sortedCars(),pos=ranking.indexOf(player)+1,gear=gearInfo();
-  $('pause-button').disabled=state==='menu'||state==='finished';
+  const pauseButton=$('pause-button'),roomHome=roomRaceActive;
+  if(pauseButton.dataset.roomHome!==String(roomHome)){
+    pauseButton.dataset.roomHome=String(roomHome);
+    pauseButton.title=roomHome?'Return to home screen (leave room)':'Pause (Esc)';
+    pauseButton.setAttribute('aria-label',roomHome?'Leave private room and return to home screen':'Pause race');
+    pauseButton.innerHTML=roomHome?'<svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"/></svg>':'<svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg>';
+  }
+  pauseButton.disabled=state==='menu'||(state==='finished'&&!roomHome);
   $('map-button').disabled=state==='countdown';
   $('position').textContent=String(pos).padStart(2,'0');document.querySelector('.race-stat small').textContent='/ '+String(cars.length).padStart(2,'0');
   $('lap').textContent=String(Math.min(player.lap,mode==='race'||mode==='room'?3:999)).padStart(2,'0');
@@ -464,7 +471,7 @@ for(const [id,label,dialog] of [['garage-shortcut','GARAGE','garage-dialog'],['s
 $('guide-nav').addEventListener('click',()=>openDialog('guide-dialog'));
 $('race-nav').addEventListener('click',()=>{document.querySelector('dialog[open]')?.close();if(state==='paused')togglePause();canvas.focus({preventScroll:true})});
 $('camera-button').addEventListener('click',cycleCamera);
-$('pause-button').addEventListener('click',togglePause);
+$('pause-button').addEventListener('click',()=>roomRaceActive?roomClient.leave():togglePause());
 $('pause-setup').addEventListener('click',()=>{const from=pausedFrom;$('pause-dialog').close();openDialog('settings-dialog');dialogReturn=from});
 $('rotate-back').addEventListener('click',()=>{state='menu';pendingMobileStart=rotationPaused=false;resetGrid()});
 const mobileRecover=document.createElement('button');mobileRecover.id='mobile-recover';mobileRecover.className='glass-icon';mobileRecover.textContent='↻';mobileRecover.setAttribute('aria-label','Recover to circuit');mobileRecover.addEventListener('click',()=>{if(state==='racing'){clearInputs();recover(player)}});document.querySelector('.session-actions').appendChild(mobileRecover);

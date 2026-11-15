@@ -1,0 +1,64 @@
+/* Selected APEX GP title-screen concept, applied over the live 3D circuit. */
+.title-screen{
+  box-sizing:border-box;isolation:isolate;padding:28px 4.2% 22px;color:#fff7ef;
+  background:linear-gradient(90deg,#241331ed 0%,#2c1934d9 27%,#45203d99 48%,#49214136 72%,#28142d12 100%),linear-gradient(0deg,#261332d9 0%,#32173854 22%,transparent 57%),linear-gradient(180deg,#2913323d,transparent 20%);
+}
+.title-header{display:none}
+.title-header .title-wordmark{font:900 italic clamp(13px,1.3vw,19px)/1 var(--display);letter-spacing:.5px;color:#fff7eb;text-shadow:0 3px 12px #210e2e}
+.title-header .title-wordmark svg{width:34px;height:30px;color:#ffd441;filter:drop-shadow(0 2px 2px #2a1027)}
+.title-header .title-wordmark i{display:none}
+.title-build{font:700 8px var(--mono);letter-spacing:1.5px;color:#ffe8ce;text-shadow:0 1px 5px #28112a}
+.title-build i{border-color:#ffc83f;padding:5px 7px;color:#ffd543}
+.title-content{box-sizing:border-box;width:min(510px,45vw);margin:112px 0 auto;padding:20px 0 35px}
+.title-kicker{font:800 italic 11px var(--display);letter-spacing:4px;color:#fff5ec;text-shadow:0 2px 8px #29112e}
+.title-kicker>span{width:38px;height:3px;background:#ffd43d;box-shadow:0 0 12px #ffc93a88}
+.title-kicker:after{content:"";width:38px;height:3px;background:#ffd43d;box-shadow:0 0 12px #ffc93a88}
+.title-content h1{font:1000 italic clamp(76px,9.5vw,156px)/.76 var(--display);letter-spacing:-5px;margin:0 0 19px;color:#fff7e8;text-shadow:0 5px 0 #32172d,0 9px 25px #2b0d34aa}
+.title-content h1>span{color:#ffc928}
+.title-content h1 small{font:800 italic clamp(10px,.95vw,15px)/1 var(--display);letter-spacing:clamp(4px,.55vw,9px);margin:17px 0 0 5px;color:#fff1ec;text-shadow:0 2px 8px #240d2d}
+.title-content>p{margin:0 0 19px 5px;color:#fff0e4;font:700 italic 13px var(--display);letter-spacing:1.1px;text-shadow:0 2px 8px #28112c}
+.title-nav{display:grid;gap:7px}
+.title-nav button{box-sizing:border-box;min-height:49px;padding:8px 15px;border:1.5px solid #f8c7ff;border-radius:28px;background:linear-gradient(100deg,#542252e8,#35183ee8);box-shadow:inset 0 1px #fff5,0 2px 7px #210b2866,0 0 0 2px #c973d544;color:#fff7fb;font:800 italic 16px var(--display);letter-spacing:.5px;text-shadow:0 1px 3px #260c25;transition:transform .16s ease,filter .16s ease,background .16s ease}
+.title-nav button .menu-number{display:none}
+.title-nav .menu-icon{width:33px;flex:0 0 33px;text-align:center;color:#fff;font:700 23px/1 var(--display);letter-spacing:0;text-shadow:0 1px 4px #210a26}
+.title-nav .menu-arrow{font:800 29px/1 var(--display);color:#fff;margin-left:auto}
+.title-nav .menu-soon{margin-left:auto;border:1px solid #ffdb5970;border-radius:20px;padding:4px 7px;color:#ffe080;font:700 7px var(--mono);letter-spacing:.5px}
+.title-nav .title-play{min-height:70px;margin:0 0 5px;border:0;border-radius:20px;background:linear-gradient(120deg,#ffe477,#ffc93d);box-shadow:0 5px 0 #a15a37,0 12px 25px #34152e77,inset 0 2px #fff8;color:#160f1c;font-size:23px;letter-spacing:1px;text-shadow:none}
+.title-play .menu-icon{font-size:31px;color:#17111b;text-shadow:none}
+.title-play .menu-arrow{font-size:36px;color:#17111b}
+.title-nav button:last-child{margin-top:12px}
+.title-nav button:hover,.title-nav button:focus-visible{transform:translateX(5px);filter:brightness(1.15);background:linear-gradient(100deg,#6f2f64,#49214f);outline:2px solid #ffe36a;outline-offset:3px;color:#fff}
+.title-nav .title-play:hover,.title-nav .title-play:focus-visible{background:linear-gradient(120deg,#ffed91,#ffd34e);color:#160f1c}
+.title-mode{margin:0;padding:0;background:none;color:#fff;font:800 italic 14px var(--display);letter-spacing:.5px;text-align:left;text-shadow:0 2px 7px #220e2d;cursor:pointer}
+.title-mode>span{margin-left:9px;color:#ffd743}
+.title-location{position:absolute;right:4.2%;bottom:35px;display:flex;flex-direction:row;align-items:center;gap:24px;max-width:57%;padding:13px 18px;border-radius:10px;background:linear-gradient(110deg,#291436a8,#24102fc9);border:1px solid #f4c7ff63;box-shadow:0 8px 22px #210c2f55;text-align:left;text-shadow:0 2px 8px #1b0c26}
+.title-location i.title-divider{flex:0 0 1px;width:1px;height:48px;margin:0;background:#ffe6fa77}
+.title-track-name,.title-format{display:flex;flex-direction:column;gap:5px}
+.title-track-name>span,.title-format>span{font:800 italic 10px var(--display);letter-spacing:1px;color:#ffd63f}
+.title-track-name strong{font:800 italic clamp(14px,1.45vw,22px)/1.1 var(--display);letter-spacing:.3px;white-space:nowrap}
+.title-track-name small{font:700 8px var(--mono);letter-spacing:.7px;color:#f5dceb}
+.title-location .title-mode{font-size:clamp(12px,1.2vw,17px);white-space:nowrap}
+.title-location .map-choice-shortcut{max-width:150px;font-size:10px}
+.title-divider{width:1px;height:48px;background:#ffe6fa77}
+.title-footer{position:absolute;left:4.2%;bottom:24px;border:0;padding:0;pointer-events:none}
+.title-footer .menu-facts{gap:20px}
+.title-footer .menu-facts>div{gap:6px}
+.title-footer .menu-facts b{font:800 italic 17px var(--display);color:#ffe078}
+.title-footer .menu-facts span{font:700 7px var(--mono);color:#ffeff4;letter-spacing:.6px}
+.title-hint,.title-tagline{display:none}
+.player-account{position:absolute;z-index:9;top:27px;right:4.2%;display:flex;align-items:center;gap:11px;max-width:min(330px,45vw);min-height:49px;padding:6px 18px 6px 11px;border:1.5px solid #f5c6ff;border-radius:30px;background:linear-gradient(100deg,#542252f2,#35183ff2);box-shadow:inset 0 1px #fff7,0 3px 11px #1f0b3066,0 0 0 3px #d78ae044;color:#fff;font:800 italic 14px var(--display);letter-spacing:.3px;text-shadow:0 1px 4px #210b28;cursor:pointer;transition:filter .15s,transform .15s}
+.player-account:hover,.player-account:focus-visible{filter:brightness(1.18);transform:translateY(-1px);outline:2px solid #ffdc4b;outline-offset:3px}
+.account-mark{display:grid;place-items:center;width:31px;height:31px;border-radius:50%;background:#fff;color:#4285f4;font:900 24px Arial;text-shadow:1px 1px #fbbc05,-1px -1px #34a853;flex:0 0 auto}
+.account-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-arrow{font:700 19px var(--body);color:#ffe271}
+body.racing .player-account{top:18px;right:20px;min-height:37px;padding:4px 12px 4px 7px;font-size:11px;max-width:220px;backdrop-filter:blur(10px)}
+body.racing .account-mark{width:25px;height:25px;font-size:20px}
+body.photo .player-account,body.overview .player-account{display:none}
+body.on-title .title-screen{overflow:hidden}
+body.on-title #arcade-hud,body.on-title .minimap,body.on-title .hud-top,body.on-title .touch-controls,body.on-title .race-message{display:none!important}
+@media(max-width:900px){.title-content{width:min(440px,52vw);margin:96px 0 auto}.title-content h1{font-size:clamp(70px,9vw,100px)}.title-nav button{min-height:45px;font-size:14px}.title-nav .title-play{min-height:61px;font-size:20px}.title-location{gap:14px;padding:11px 13px;right:3%;bottom:25px}.title-track-name small{font-size:7px}.title-footer{left:3%;bottom:18px}.player-account{top:18px;right:3%;min-height:42px;font-size:12px}}
+@media(max-width:640px){.title-screen{padding:18px 5% 16px;background:linear-gradient(90deg,#241331ed 0%,#2c1934db 50%,#45203d68 100%),linear-gradient(0deg,#261332e8 0%,#32173855 42%,transparent 78%)}.title-header{inset:17px 5% auto}.title-header .title-wordmark{font-size:12px}.title-header .title-wordmark svg{width:26px}.title-build{display:none}.player-account{top:13px;right:5%;min-height:36px;max-width:52vw;padding:4px 10px 4px 7px;gap:7px;font-size:10px}.account-mark{width:24px;height:24px;font-size:19px}.account-arrow{font-size:15px}.title-content{width:min(100%,390px);margin:70px 0 auto;padding:38px 0 18px}.title-kicker{font-size:8px;letter-spacing:2.3px}.title-kicker>span{width:25px}.title-kicker:after{width:25px}.title-content h1{font-size:clamp(58px,17vw,88px);letter-spacing:-3px;margin:16px 0 13px}.title-content h1 small{font-size:9px;letter-spacing:4px;margin-top:12px}.title-content>p{font-size:10px;margin-bottom:12px}.title-nav{gap:5px;grid-template-columns:1fr 1fr}.title-nav button{min-height:39px;padding:6px 9px;gap:7px;font-size:10px;letter-spacing:0}.title-nav .menu-icon{width:19px;flex-basis:19px;font-size:16px}.title-nav .menu-arrow{font-size:19px}.title-nav .menu-soon{font-size:6px;padding:3px 5px}.title-nav .title-play{grid-column:1/-1;min-height:51px;margin-bottom:3px;font-size:16px}.title-play .menu-icon{font-size:22px}.title-play .menu-arrow{font-size:26px}.title-nav button:last-child{margin-top:0}.title-location{z-index:8;display:flex;visibility:visible;right:5%;bottom:12px;left:5%;max-width:none;justify-content:space-between;gap:8px;padding:9px 10px;background:#291436f2;color:#fff}.title-track-name,.title-format{display:flex!important;visibility:visible!important;opacity:1!important}.title-track-name>span,.title-format>span{font-size:7px}.title-track-name strong{font-size:11px}.title-track-name small{font-size:6px;letter-spacing:0}.title-location .title-mode{display:block!important;font-size:10px}.title-location .map-choice-shortcut{max-width:none;font-size:8px}.title-location i.title-divider{height:36px}.title-footer{display:none}body.racing .player-account{top:calc(53px + env(safe-area-inset-top));right:12px;min-height:32px;font-size:9px;max-width:160px}}
+@media(max-width:380px){.title-content{padding-bottom:130px}.title-nav button{font-size:9px;padding:6px}.title-location{gap:5px}.title-track-name strong{font-size:10px}.title-track-name small{max-width:104px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.title-location .title-mode{font-size:9px}}
+@media(max-height:680px) and (min-width:641px){.title-screen{padding-top:18px;padding-bottom:15px}.title-content{margin:65px 0 auto;padding:25px 0 20px}.title-content h1{font-size:clamp(62px,7vw,92px);margin-bottom:14px}.title-content h1 small{margin-top:12px}.title-content>p{margin-bottom:12px}.title-nav{gap:5px}.title-nav button{min-height:38px}.title-nav .title-play{min-height:54px}.title-location{bottom:19px}.title-footer{bottom:13px}}
+@media(max-height:560px) and (min-width:641px){.title-content{width:360px;margin:48px 0 auto;padding:18px 0 13px}.title-content h1{font-size:62px}.title-nav button{min-height:32px;font-size:12px}.title-nav .title-play{min-height:42px;font-size:17px}.title-nav button:last-child{margin-top:4px}.title-location{padding:8px 12px}.title-track-name strong{font-size:14px}}
+@media(prefers-reduced-motion:reduce){.player-account,.title-nav button{transition:none}}

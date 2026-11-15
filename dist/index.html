@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="mobile.css">
   <link rel="stylesheet" href="mapbox.css">
   <link rel="stylesheet" href="garage.css">
+  <link rel="stylesheet" href="title-concept.css">
 </head>
 <body class="on-title">
   <header class="topbar">
@@ -51,23 +52,22 @@
       <div class="title-screen" id="menu-card">
         <header class="title-header"><span class="title-wordmark"><svg viewBox="0 0 40 32" aria-hidden="true"><path d="M1 30 19 2h9L10 30zm15 0L29 10l10 20H29l-4-8-5 8z" fill="currentColor"/></svg>APEX GP <i>/</i> INDEPENDENT RACING</span><span class="title-build">EARLY ACCESS <i>01</i></span></header>
         <div class="title-content">
+          <h1>APEX<span>GP</span><small>NAVI MUMBAI RACING</small></h1>
           <div class="title-kicker"><span></span> THE STREETS ARE YOURS.</div>
-          <h1>APEX<span>GP</span><small>NAVI MUMBAI</small></h1>
           <p>Race the waterfront. Chase the last light.</p>
           <nav class="title-nav" aria-label="Main menu">
-            <button id="start-button" class="title-play"><span class="menu-number">01</span><span>PLAY</span><span class="menu-arrow">↗</span></button>
-            <button id="leaderboard-menu"><span class="menu-number">02</span><span>LEADERBOARD</span><span class="menu-soon">SOON</span><span class="menu-arrow">↗</span></button>
-            <button id="rooms-menu"><span class="menu-number">03</span><span>PRIVATE ROOMS</span><span class="menu-soon">BETA</span><span class="menu-arrow">↗</span></button>
-            <button id="garage-menu"><span class="menu-number">04</span><span>GARAGE</span><span class="menu-arrow">↗</span></button>
-            <button id="setup-button"><span class="menu-number">05</span><span>SETTINGS</span><span class="menu-arrow">↗</span></button>
-            <button id="title-help"><span class="menu-number">06</span><span>HOW TO PLAY</span><span class="menu-arrow">↗</span></button>
+            <button id="start-button" class="title-play"><span class="menu-icon" aria-hidden="true">⚑</span><span>START RACE</span><span class="menu-arrow">›</span></button>
+            <button id="rooms-menu"><span class="menu-icon" aria-hidden="true">♟</span><span>PRIVATE ROOMS</span><span class="menu-soon">BETA</span><span class="menu-arrow">›</span></button>
+            <button id="leaderboard-menu"><span class="menu-icon" aria-hidden="true">♜</span><span>LEADERBOARD</span><span class="menu-soon">BETA</span><span class="menu-arrow">›</span></button>
+            <button id="garage-menu"><span class="menu-icon" aria-hidden="true">⌂</span><span>GARAGE</span><span class="menu-arrow">›</span></button>
+            <button id="setup-button"><span class="menu-icon" aria-hidden="true">⚙</span><span>SETTINGS</span><span class="menu-arrow">›</span></button>
+            <button id="title-help"><span class="menu-icon" aria-hidden="true">▤</span><span>HOW TO PLAY</span><span class="menu-arrow">›</span></button>
           </nav>
-          <button id="mode-button" class="title-mode" aria-label="Change race format">GRAND PRIX <span>⌄</span></button>
-          <button id="map-choice" class="title-mode map-choice-shortcut" aria-label="Change map">ORIGINAL MAP ↗</button>
         </div>
-        <div class="title-location"><span>01 / THE HOME CIRCUIT</span><strong>JEWEL LAKE</strong><small>PALM BEACH ROAD · NAVI MUMBAI</small><i></i></div>
+        <div class="title-location"><div class="title-track-name"><span>CURRENT CIRCUIT</span><strong>PALM BEACH CIRCUIT</strong><small>NAVI MUMBAI · 3.753 KM</small></div><button id="map-choice" class="title-mode map-choice-shortcut" aria-label="Change map">ORIGINAL MAP <span>↗</span></button><i class="title-divider"></i><div class="title-format"><span>RACE FORMAT</span><button id="mode-button" class="title-mode" aria-label="Change race format">GRAND PRIX <span>⌄</span></button></div></div>
         <footer class="title-footer"><div class="menu-facts"><div><b>03</b><span>LAPS</span></div><div><b>08</b><span>DRIVERS</span></div><div><b id="circuit-length">3.753</b><span>KM CIRCUIT</span></div></div><span class="title-hint"><kbd>↑</kbd><kbd>↓</kbd> SELECT <i>·</i> <kbd>ENTER</kbd> CONFIRM</span><span class="title-tagline">FIND YOUR LIMIT.</span></footer>
       </div>
+      <button class="player-account" id="player-account" type="button" aria-label="Sign in with Google"><span class="account-mark" aria-hidden="true">G</span><span class="account-label" id="player-account-label">SIGN IN WITH GOOGLE</span><span class="account-arrow" aria-hidden="true">↗</span></button>
       <div class="camera-indicator"><span class="camera-cross">⊕</span><span id="camera-label">ARCADE CAM</span><kbd>C</kbd></div>
       <div class="telemetry" id="telemetry"><div class="rpm-bar" id="rpm-bar"></div><div class="dash-main"><div class="gear"><span>GEAR</span><b id="gear">N</b></div><div class="speed"><b id="speed">000</b><span>KM/H</span></div><div class="pedals"><div><i id="throttle-meter"></i></div><div><i id="brake-meter"></i></div><small>THR · BRK</small></div></div><div class="ers"><span><i></i> ERS <b id="ers-value">100%</b></span><div><i id="ers-bar"></i></div><kbd>SHIFT</kbd></div></div>
       <aside class="minimap"><div class="minimap-label">JEWEL LAKE <span>2.4 KM</span></div><canvas id="minimap" width="360" height="230" aria-label="Circuit map with driver positions"></canvas><div class="map-key"><span><i></i> YOU</span><span><i></i> FIELD</span><span id="map-turn">T01 / JEWEL BEND</span></div></aside>
