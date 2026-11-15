@@ -38,11 +38,11 @@ let cars=[],player,selectedColor=storage.get('color','#a2cf3e'),personalBest=Num
 let selectedSetup=setupId(storage.get('car-setup','balanced')),activeSetup=selectedSetup;
 let pendingVerifiedTicket=null,verifiedSession=null,submittingVerified=false,verifiedStartGeneration=0;
 const competition=createCompetitionClient();
-const competitionUI=createCompetitionUI({api:competition,trackId:track.id,onAccount:()=>openDialog('leaderboard-dialog'),onStart:async()=>{
+const competitionUI=createCompetitionUI({api:competition,trackId:track.id,onAccount:()=>{if($('race-choice-dialog').open)$('race-choice-dialog').close();openDialog('leaderboard-dialog')},onStart:async()=>{
   if(mapMode!=='classic')throw new Error('Verified beta laps use the original map.');
   const generation=++verifiedStartGeneration,ticket=await competition.startAttempt();
-  if(generation!==verifiedStartGeneration||!$('leaderboard-dialog').open)throw new Error('Attempt cancelled. Start a new one when ready.');
-  $('leaderboard-dialog').close();pendingVerifiedTicket=ticket;startRace();
+  if(generation!==verifiedStartGeneration||!$('race-choice-dialog').open)throw new Error('Attempt cancelled. Start a new one when ready.');
+  $('race-choice-dialog').close();pendingVerifiedTicket=ticket;startRace();
 }});
 const roomClient=createRoomClient({api:competition});
 const roomsUI=createRoomsUI({api:competition,client:roomClient,onAccount:()=>openDialog('leaderboard-dialog')});
@@ -141,7 +141,7 @@ function resetGrid({verifiedTicket=null,roomPlayers=null,roomSelfId=null}={}){
   raceTime=0;sessionBest=Infinity;countdown=0;accumulator=0;messageRemaining=0;$('race-message').classList.remove('show');
   $('finish-card').hidden=true;$('start-lights').hidden=true;$('menu-card').hidden=false;
   document.body.classList.remove('racing');document.body.classList.add('on-title');$('session-tag').innerHTML='<i></i> ON THE GRID';
-  $('lap-total').textContent=mode==='race'||mode==='room'?'/ 03':'/ ∞';
+  $('lap-total').textContent=verifiedTicket?'/ 01':mode==='race'||mode==='room'?'/ 03':'/ ∞';
   const facts=document.querySelectorAll('.menu-facts b');facts[0].textContent=mode==='race'?'03':'∞';facts[1].textContent=String(total).padStart(2,'0');
   $('mode-button').innerHTML=(mode==='race'?'GRAND PRIX':mode==='time'?'TIME TRIAL':'FREE DRIVE')+' <span>⌄</span>';
   $('menu-card').querySelector('p').textContent=mode==='race'?'Race the waterfront. Chase the last light.':mode==='time'?'Just you, Jewel Lake, and the clock.':'A sunset, a lakeside road, and the freedom to drive.';
@@ -205,7 +205,7 @@ function simulate(dt){
     }
     const before=Math.floor(countdown/.65);countdown+=dt;const count=Math.min(5,Math.floor(countdown/.65));
     if(count!==before&&count<=5&&count>0){audio.beep(420,.08);[...$('start-lights').querySelectorAll('i')].forEach((l,i)=>l.classList.toggle('lit',i<count));world.lamps.forEach((l,i)=>l.material.color.set(i<count?'#f3392c':'#351b1e'))}
-    if(countdown>4.45){state='racing';$('start-lights').hidden=true;$('session-tag').innerHTML='<i></i> '+(verifiedSession?'VERIFIED BETA · OUTLAP':mode==='race'?'RACE IN PROGRESS':mode==='time'?'TIME TRIAL':'FREE DRIVE');world.lamps.forEach(l=>l.material.color.set('#351b1e'));audio.beep(840,.25);notify(verifiedSession?'BETA OUTLAP · NEXT LAP IS TIMED':'LIGHTS OUT. FULL SEND.',3)}
+    if(countdown>4.45){state='racing';$('start-lights').hidden=true;$('session-tag').innerHTML='<i></i> '+(verifiedSession?'VERIFIED BETA · READY':mode==='race'?'RACE IN PROGRESS':mode==='time'?'TIME TRIAL':'FREE DRIVE');world.lamps.forEach(l=>l.material.color.set('#351b1e'));audio.beep(840,.25);notify(verifiedSession?'CROSS THE LINE TO START YOUR LAP':'LIGHTS OUT. FULL SEND.',3)}
     return;
   }
   if(state!=='racing')return;
@@ -213,7 +213,7 @@ function simulate(dt){
   const input=getPlayerInput();
   if(verifiedSession){
     const before=verifiedSession.run.stage,stage=verifiedSession.step(input);
-    if(before==='outlap'&&stage==='timed'){player.lapStart=raceTime;$('session-tag').innerHTML='<i></i> VERIFIED BETA · FLYING LAP';notify('FLYING LAP · MAKE IT COUNT',3)}
+    if(before==='ready'&&stage==='timed'){player.lapStart=raceTime;$('session-tag').innerHTML='<i></i> VERIFIED BETA · LAP 1 / 1';notify('LAP STARTED · MAKE IT COUNT',3)}
     if(stage==='invalid')invalidateVerified(verifiedSession.run.invalidReason);
     else if(stage==='complete')finishVerified();
     return;
@@ -286,7 +286,7 @@ function finishRoomRace(results){
 function verifiedFinishCard(title,description){
   state='finished';clearInputs();$('start-lights').hidden=true;$('finish-card').hidden=false;
   $('finish-title').textContent=title;$('finish-subtitle').textContent=description;
-  const labels=$('finish-card').querySelectorAll('.finish-stats small');labels[0].textContent='MODE';labels[1].textContent='FLYING LAP';labels[2].textContent='SAVE STATUS';
+  const labels=$('finish-card').querySelectorAll('.finish-stats small');labels[0].textContent='MODE';labels[1].textContent='RANKED LAP';labels[2].textContent='SAVE STATUS';
   $('finish-position').textContent='BETA';$('finish-time').textContent=verifiedSession?.run.result?formatTime(verifiedSession.run.result.timeMs/1000):'--:--.---';$('finish-best').textContent='UNSAVED';
   $('session-tag').innerHTML='<i></i> BETA · PRIZES NOT ACTIVE';
 }
@@ -455,7 +455,9 @@ for(const dialog of document.querySelectorAll('dialog')){
   dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});
   dialog.addEventListener('close',()=>{if(dialog.id==='leaderboard-dialog')verifiedStartGeneration++;if(dialog.id==='garage-dialog')garage.close();if(dialog.id==='pause-dialog'){if(state==='paused'&&!rotationPaused&&!document.querySelector('dialog[open]'))state=pausedFrom}else{if(state==='paused')state=dialogReturn;if(state==='menu'&&!pendingMobileStart&&!roomClient.snapshot)resetGrid()}clearInputs();syncOrientation()});
 }
-$('start-button').addEventListener('click',startRace);
+$('start-button').addEventListener('click',()=>openDialog('race-choice-dialog'));
+$('unranked-race-button').addEventListener('click',()=>{$('race-choice-dialog').close();startRace()});
+$('ranked-race-button').addEventListener('click',()=>void competitionUI.startRanked());
 $('race-again').addEventListener('click',()=>{if(roomRaceActive&&roomClient.snapshot){openDialog('rooms-dialog');return}state='menu';roomClient.leave();resetGrid()});
 $('settings-button').addEventListener('click',()=>openDialog('settings-dialog'));
 $('setup-button').addEventListener('click',()=>openDialog('settings-dialog'));

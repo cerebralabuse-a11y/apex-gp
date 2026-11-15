@@ -175,8 +175,8 @@ begin
     or (p_result ->> 'trackId') is distinct from v_attempt.track_id
     or coalesce(p_result ->> 'timeTicks', '') !~ '^[0-9]{1,5}$'
     or coalesce(p_result ->> 'totalTicks', '') !~ '^[0-9]{1,5}$'
-    or (p_result ->> 'gates') is distinct from '28'
-    or (p_result ->> 'crossings') is distinct from '31'
+    or (p_result ->> 'gates') is distinct from '14'
+    or (p_result ->> 'crossings') is distinct from '16'
     or jsonb_typeof(p_result -> 'final') is distinct from 'object' then
     raise exception using errcode = 'P0001', message = 'invalid_result';
   end if;
@@ -193,7 +193,7 @@ begin
   end loop;
   v_result := jsonb_build_object('ruleset', v_attempt.ruleset, 'trackId', v_attempt.track_id,
     'timeTicks', v_ticks, 'timeMs', round(v_ticks * 1000.0 / 120, 3), 'totalTicks', v_total,
-    'gates', 28, 'crossings', 31, 'final', p_result -> 'final');
+    'gates', 14, 'crossings', 16, 'final', p_result -> 'final');
   select min(time_ticks) into v_previous from apex_private.laps where user_id = p_user_id and ruleset = v_attempt.ruleset;
   begin
     insert into apex_private.laps (attempt_id, user_id, ruleset, recording_hash, time_ticks)
@@ -215,7 +215,7 @@ language sql security invoker set search_path = '' as $$
       select jsonb_agg(jsonb_build_object('rank', s.rank, 'driver', s.driver_name,
         'timeTicks', s.time_ticks, 'timeMs', round(s.time_ticks * 1000.0 / 120, 3),
         'recordedAt', s.recorded_at) order by s.time_ticks, s.recorded_at, s.user_id)
-      from (select * from apex_private.standings order by time_ticks, recorded_at, user_id limit 50) s
+      from (select * from apex_private.standings order by time_ticks, recorded_at, user_id) s
     ), '[]'::jsonb));
 $$;
 

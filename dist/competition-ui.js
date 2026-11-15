@@ -34,16 +34,14 @@ export function createCompetitionUI({api,onStart,trackId}){
   profileForm.append(name.label,save,nameHint);profileForm.hidden=true;account.append(profileForm);
   const entryStatus=element('p','competition-status');entryStatus.setAttribute('role','status');entryStatus.setAttribute('aria-live','polite');account.append(entryStatus);
 
-  launch.append(element('span','competition-kicker','ORIGINAL CIRCUIT · BALANCED'),element('h3','','One clean flying lap.'));
-  const rules=element('p','competition-rules','Drive an outlap, then one timed lap. Stay within the circuit limits. Pausing, leaving the game or recovering ends the attempt.');
-  const start=button('START VERIFIED BETA LAP','competition-start');start.disabled=true;
-  const startHint=element('p','competition-hint','Sign in and choose a driver name to enter.');
+  launch.append(element('span','competition-kicker','ORIGINAL CIRCUIT · BALANCED'),element('h3','','One clean lap.'));
+  const rules=element('p','competition-rules','Cross the start line, complete one lap, and cross it again. Stay within the circuit limits. Pausing, leaving the game or recovering ends the attempt.');
   const best=element('div','competition-best'),bestLabel=element('span','competition-kicker','YOUR VERIFIED BETA BEST'),bestTime=element('strong','','--:--.---'),bestRank=element('span','competition-best-rank','No verified lap yet.');
-  best.append(bestLabel,bestTime,bestRank);launch.append(rules,start,startHint,best);entry.append(account,launch);
+  best.append(bestLabel,bestTime,bestRank);launch.append(rules,best);entry.append(account,launch);
   dialog.querySelector('.board-circuit').before(entry);
 
-  const boardActions=element('div','competition-board-actions'),boardState=element('p','','Loading global standings…'),refreshButton=button('REFRESH STANDINGS','competition-text-button');
-  boardState.setAttribute('role','status');boardState.setAttribute('aria-live','polite');boardActions.append(boardState,refreshButton);dialog.querySelector('.board-table-wrap').before(boardActions);
+  const boardActions=element('div','competition-board-actions'),boardState=element('p','','Loading global standings…'),boardStats=element('div','competition-board-stats'),refreshButton=button('REFRESH STANDINGS','competition-text-button');
+  boardState.setAttribute('role','status');boardState.setAttribute('aria-live','polite');boardActions.append(boardState,boardStats,refreshButton);dialog.querySelector('.board-table-wrap').before(boardActions);
   dialog.querySelector('.board-status').textContent='BETA / PRIZES NOT ACTIVE';
   table.caption.textContent='Verified beta fastest lap standings';
   dialog.querySelector('.board-circuit>span:first-child').textContent='VERIFIED BETA · FASTEST LAP';
@@ -53,11 +51,11 @@ export function createCompetitionUI({api,onStart,trackId}){
 
   let enabled=false,signed=false,profile=null,pending=false,generation=0,lastEmail=null,attemptMessage='',dirtyName=false;
   function message(text,isError=false){entryStatus.textContent=text;entryStatus.dataset.error=String(isError)}
-  function renderPlayerAccount(name){
+  function renderPlayerAccount(name,isSignedIn=signed){
     playerAccountLabel.textContent=name||'SIGN IN WITH GOOGLE';
     playerAccount.setAttribute('aria-label',name?`Signed in as ${name}. Open account settings.`:'Sign in with Google');
     playerAccount.title=name?`Signed in as ${name}. Open account settings.`:'Sign in with Google';
-    playerAccount.classList.toggle('is-signed-in',!!name);
+    playerAccount.classList.toggle('is-signed-in',isSignedIn);
   }
   let accountGeneration=0,accountBusy=false;
   async function refreshPlayerAccount(){
@@ -65,22 +63,20 @@ export function createCompetitionUI({api,onStart,trackId}){
     try{
       const config=await api.ready();if(request!==accountGeneration)return;
       playerAccount.disabled=!config.enabled;
-      if(!config.enabled){signed=false;profile=null;renderPlayerAccount('ONLINE SIGN-IN UNAVAILABLE');return}
+      if(!config.enabled){signed=false;profile=null;renderPlayerAccount('ONLINE SIGN-IN UNAVAILABLE',false);return}
       const identity=await api.identity();if(request!==accountGeneration)return;
       signed=!!identity.signedIn;
       const fallback=identity.signedIn?(identity.email?.split('@')[0]||'SIGNED IN'):'';
-      renderPlayerAccount(fallback);
+      renderPlayerAccount(fallback,signed);
       if(identity.signedIn){
-        try{const me=await api.me();if(request===accountGeneration){profile=me?.profile||null;renderPlayerAccount(profile?.driverName||fallback)}}catch{}
+        try{const me=await api.me();if(request===accountGeneration){profile=me?.profile||null;renderPlayerAccount(profile?.driverName||fallback,true)}}catch{}
       }
-    }catch{if(request===accountGeneration){playerAccount.disabled=false;renderPlayerAccount('SIGN IN WITH GOOGLE')}}
+    }catch{if(request===accountGeneration){playerAccount.disabled=false;renderPlayerAccount('SIGN IN WITH GOOGLE',false)}}
   }
   function controls(){
     google.disabled=send.disabled=save.disabled=signOut.disabled=pending||!enabled;
     email.input.disabled=name.input.disabled=pending||!enabled;
     refreshButton.disabled=pending;
-    start.disabled=pending||!enabled||!signed||!profile||trackId!==ORIGINAL_TRACK;
-    startHint.textContent=trackId!==ORIGINAL_TRACK?'Choose the Original map in Race Setup to enter a verified beta lap.':!enabled?'Online beta is unavailable. You can still practice below.':!signed?'Sign in and choose a driver name to enter.':!profile?'Save your public driver name to enter.':'Your lap is replayed on the server before it can enter the beta standings.';
   }
   function emptyBoard(title,copy){
     const row=element('tr'),cell=element('td'),empty=element('div','board-empty');cell.colSpan=4;
@@ -89,15 +85,15 @@ export function createCompetitionUI({api,onStart,trackId}){
   function renderBoard(data){
     const entries=data?.entries;
     if(!Array.isArray(entries)||entries.some(e=>!Number.isInteger(e.rank)||e.rank<1||typeof e.driver!=='string'||!Number.isInteger(e.timeTicks)||e.timeTicks<=0))throw new Error('Standings could not be read. Please refresh.');
-    if(!entries.length){emptyBoard('The grid is waiting.','No verified beta laps yet. Set the first clean flying lap.');boardState.textContent='No verified beta laps yet.';return}
-    const fastest=Math.min(...entries.map(e=>e.timeTicks)),rows=[];
-    for(const item of entries.slice(0,50)){
+    if(!entries.length){emptyBoard('The grid is waiting.','No verified beta laps yet. Set the first clean lap.');boardState.textContent='No verified beta laps yet.';boardStats.textContent='0 DRIVERS · NO LAP YET';return}
+    const fastest=Math.min(...entries.map(e=>e.timeTicks)),average=Math.round(entries.reduce((sum,e)=>sum+e.timeTicks,0)/entries.length),rows=[];
+    for(const item of entries){
       const row=element('tr','competition-result-row');if(item.rank<=3)row.classList.add('competition-podium');
       const rank=element('td','competition-rank',String(item.rank).padStart(2,'0')),driver=element('th','competition-driver',item.driver);driver.scope='row';
       const time=element('td','competition-time',tickTime(item.timeTicks)),gap=element('td','competition-gap',item.timeTicks===fastest?'LEADER':`+${((item.timeTicks-fastest)/120).toFixed(3)}`);
       row.append(rank,driver,time,gap);rows.push(row);
     }
-    tbody.replaceChildren(...rows);boardState.textContent=`${Math.min(entries.length,50)} ${entries.length===1?'driver':'drivers'} · Best lap per driver · Top 50`;
+    tbody.replaceChildren(...rows);boardState.textContent=`${entries.length} ${entries.length===1?'driver':'drivers'} · All verified standings`;boardStats.textContent=`${entries.length} DRIVERS · FASTEST ${tickTime(fastest)} · AVG ${tickTime(average)}`;
   }
   async function refresh(){
     const request=++generation;refreshButton.disabled=true;
@@ -106,9 +102,9 @@ export function createCompetitionUI({api,onStart,trackId}){
       enabled=!!config.enabled;
       if(!enabled){
         signed=false;profile=null;google.hidden=signInForm.hidden=emailNote.hidden=signedIn.hidden=profileForm.hidden=true;
-        renderPlayerAccount('ONLINE SIGN-IN UNAVAILABLE');playerAccount.disabled=true;
+        renderPlayerAccount('ONLINE SIGN-IN UNAVAILABLE',false);playerAccount.disabled=true;
         connection.textContent=config.reason||'Online beta is not configured on this host.';
-        emptyBoard('Practice is open.','The online beta is unavailable right now. Your browser-only practice records are still available below.');boardState.textContent='Online beta unavailable.';return false;
+        emptyBoard('Practice is open.','The online beta is unavailable right now. Your browser-only practice records are still available below.');boardState.textContent='Online beta unavailable.';boardStats.textContent='STANDINGS UNAVAILABLE';return false;
       }
       const identity=await api.identity();if(request!==generation)return false;
       signed=!!identity.signedIn;
@@ -119,7 +115,7 @@ export function createCompetitionUI({api,onStart,trackId}){
       identityText.textContent=identity.email||'Signed in';
       const [boardResult,meResult]=await Promise.allSettled([api.leaderboard(),signed?api.me():Promise.resolve(null)]);if(request!==generation)return false;
       if(boardResult.status==='fulfilled')renderBoard(boardResult.value);
-      else{emptyBoard('Standings could not load.','Your result has not changed. Use Refresh standings to try again.');boardState.textContent=boardResult.reason?.message||'Standings unavailable.'}
+      else{emptyBoard('Standings could not load.','Your result has not changed. Use Refresh standings to try again.');boardState.textContent=boardResult.reason?.message||'Standings unavailable.';boardStats.textContent='STANDINGS UNAVAILABLE'}
       if(meResult.status==='fulfilled'){
         profile=meResult.value?.profile||null;
         renderPlayerAccount(signed?(profile?.driverName||identity.email?.split('@')[0]||'SIGNED IN'):'');
@@ -132,7 +128,7 @@ export function createCompetitionUI({api,onStart,trackId}){
       }else{profile=null;bestTime.textContent='--:--.---';bestRank.textContent='Verified best unavailable.';if(!attemptMessage)message(meResult.reason?.message||'Your profile could not load. Please refresh.',true);return false}
     }catch(error){
       if(request!==generation)return false;enabled=false;profile=null;connection.textContent='The online beta could not connect.';
-      message(error.message||'Please try again.',true);emptyBoard('Connection interrupted.','Your practice records remain on this browser. Use Refresh standings to reconnect.');boardState.textContent='Could not connect.';
+      message(error.message||'Please try again.',true);emptyBoard('Connection interrupted.','Your practice records remain on this browser. Use Refresh standings to reconnect.');boardState.textContent='Could not connect.';boardStats.textContent='STANDINGS OFFLINE';
       return false;
     }finally{if(request===generation)controls()}
   }
@@ -156,9 +152,17 @@ export function createCompetitionUI({api,onStart,trackId}){
   profileForm.addEventListener('submit',event=>{event.preventDefault();void action(async()=>{save.textContent='SAVING…';try{profile=await api.saveProfile(name.input.value.trim());dirtyName=false;return await refresh()}finally{save.textContent=profile?'UPDATE DRIVER NAME':'SAVE DRIVER NAME'}},'Driver name saved. Your next verified lap is ready.')});
   signOut.addEventListener('click',()=>void action(async()=>{++generation;await api.signOut();profile=null;signed=false;bestTime.textContent='--:--.---';await refresh()},'Signed out. Practice is still open.'));
   refreshButton.addEventListener('click',()=>void refresh());
-  start.addEventListener('click',()=>{if(start.disabled)return;void action(async()=>{message('Preparing your verified beta attempt…');await onStart()})});
+  async function startRanked(){
+    if(pending)return;
+    const status=document.getElementById('ranked-race-status');
+    if(trackId!==ORIGINAL_TRACK){status.textContent='Choose the Original map in Race Setup for ranked laps.';return}
+    if(!enabled||!signed||!profile){onAccount();return}
+    status.textContent='Preparing your verified lap…';pending=true;controls();
+    try{await onStart()}catch(error){status.textContent=error.message||'Could not start the ranked lap.'}
+    finally{pending=false;controls()}
+  }
   api.onAuthChange(()=>setTimeout(()=>{void refreshPlayerAccount();if(dialog.open)void refresh()},0));
   controls();
   void refreshPlayerAccount();
-  return{open:refresh,refresh,refreshPlayerAccount,showAttemptStatus};
+  return{open:refresh,refresh,refreshPlayerAccount,showAttemptStatus,startRanked};
 }
