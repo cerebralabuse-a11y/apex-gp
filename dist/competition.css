@@ -40,6 +40,10 @@
 .race-choice-dialog h2 span{color:var(--acid)}
 .race-choice-dialog .primary-button,.race-choice-dialog .secondary-button{width:100%;margin-top:12px}
 .race-choice-dialog .race-choice-note{margin:7px 0 17px;font:10px var(--mono);color:#b7bab7}
+#ranked-race-status.is-loading{display:flex;align-items:center;gap:9px}
+#ranked-race-status.is-loading::before{content:"";width:14px;height:14px;flex:0 0 14px;border:2px solid #edcc8544;border-top-color:var(--acid);border-radius:50%;animation:ranked-progress .75s linear infinite}
+@keyframes ranked-progress{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){#ranked-race-status.is-loading::before{animation:none;border-color:var(--acid)}}
 .competition-board-actions .competition-text-button{font-size:10px}
 .future-board .competition-result-row>td,.future-board .competition-result-row>th{padding:17px 20px;border-bottom:1px solid #a4b5a21f;background:none}
 .future-board .competition-result-row>.competition-rank{font:600 18px var(--display);color:#aebba9;font-variant-numeric:tabular-nums}

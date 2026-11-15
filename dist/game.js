@@ -67,7 +67,11 @@ async function requestLandscape(){
   try{await screen.orientation?.lock?.('landscape')}catch{}
 }
 function showRotatePrompt(show){
-  const prompt=$('rotate-prompt'),opening=show&&prompt.hidden;prompt.hidden=!show;
+  const prompt=$('rotate-prompt'),opening=show&&prompt.hidden,menu=state==='menu'||pendingMobileStart;
+  prompt.hidden=!show;
+  $('rotate-title').textContent=menu?'Start in landscape.':'Rotate to continue.';
+  prompt.querySelector('p').textContent=menu?'Turn your phone sideways to browse the menu and start a race.':'Turn your phone sideways to resume driving.';
+  $('rotate-back').textContent=menu?'TRY LANDSCAPE':'BACK TO MENU';
   for(const child of $('race-view').children)if(child!==prompt)child.inert=show;
   if(opening)$('rotate-back').focus({preventScroll:true});
 }
@@ -75,7 +79,7 @@ function syncOrientation(){
   const portrait=portraitPhone();
   if(portrait&&verifiedSession&&(state==='racing'||state==='countdown'))invalidateVerified('Rotation interrupted the beta attempt. Start again in landscape.');
   if(portrait&&(state==='racing'||state==='countdown')){pausedFrom=state;state='paused';rotationPaused=true;clearInputs()}
-  showRotatePrompt(portrait&&(pendingMobileStart||rotationPaused));
+  showRotatePrompt(portrait&&(pendingMobileStart||rotationPaused||state==='menu')&&!document.querySelector('dialog[open]'));
   if(!portrait&&pendingMobileStart){pendingMobileStart=false;startRaceNow()}
   if(!portrait&&rotationPaused){rotationPaused=false;if(state==='paused'&&!document.querySelector('dialog[open]'))$('pause-dialog').showModal()}
 }
@@ -475,7 +479,7 @@ $('race-nav').addEventListener('click',()=>{document.querySelector('dialog[open]
 $('camera-button').addEventListener('click',cycleCamera);
 $('pause-button').addEventListener('click',()=>roomRaceActive?roomClient.leave():togglePause());
 $('pause-setup').addEventListener('click',()=>{const from=pausedFrom;$('pause-dialog').close();openDialog('settings-dialog');dialogReturn=from});
-$('rotate-back').addEventListener('click',()=>{state='menu';pendingMobileStart=rotationPaused=false;resetGrid()});
+$('rotate-back').addEventListener('click',()=>{if(rotationPaused){state='menu';pendingMobileStart=rotationPaused=false;resetGrid();return}void requestLandscape()});
 const mobileRecover=document.createElement('button');mobileRecover.id='mobile-recover';mobileRecover.className='glass-icon';mobileRecover.textContent='↻';mobileRecover.setAttribute('aria-label','Recover to circuit');mobileRecover.addEventListener('click',()=>{if(state==='racing'){clearInputs();recover(player)}});document.querySelector('.session-actions').appendChild(mobileRecover);
 $('resume-button').addEventListener('click',togglePause);
 $('restart-button').addEventListener('click',()=>{$('pause-dialog').close();startRace()});

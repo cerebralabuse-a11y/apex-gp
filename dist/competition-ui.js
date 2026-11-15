@@ -14,6 +14,7 @@ function field(labelText,type,name){
 export function createCompetitionUI({api,onStart,trackId}){
   const dialog=document.getElementById('leaderboard-dialog'),table=dialog.querySelector('.future-board'),tbody=table.tBodies[0];
   const playerAccount=document.getElementById('player-account'),playerAccountLabel=document.getElementById('player-account-label');
+  const rankedButton=document.getElementById('ranked-race-button');
   const entry=element('section','competition-entry');entry.setAttribute('aria-label','Verified beta entry');
   const account=element('div','competition-account'),launch=element('div','competition-launch');
   account.append(element('span','competition-kicker','YOUR PLACE ON THE GRID'),element('h3','','Create your driver identity.'));
@@ -58,6 +59,8 @@ export function createCompetitionUI({api,onStart,trackId}){
   function suggestedDriverName(){return `Racer-${crypto.randomUUID().slice(0,8).toUpperCase()}`}
   function renderPlayerAccount(name,isSignedIn=signed){
     playerAccountLabel.textContent=name||'SIGN IN WITH GOOGLE';
+    const mobileDriver=document.getElementById('mobile-driver');
+    mobileDriver.textContent=name||'';mobileDriver.hidden=!isSignedIn;
     playerAccount.setAttribute('aria-label',name?`Signed in as ${name}. Open account settings.`:'Sign in with Google');
     playerAccount.title=name?`Signed in as ${name}. Open account settings.`:'Sign in with Google';
     playerAccount.classList.toggle('is-signed-in',isSignedIn);
@@ -80,6 +83,7 @@ export function createCompetitionUI({api,onStart,trackId}){
   }
   function controls(){
     google.disabled=send.disabled=save.disabled=signOut.disabled=pending||!enabled;
+    rankedButton.disabled=pending;
     email.input.disabled=name.input.disabled=suggest.disabled=pending||!enabled;
     refreshButton.disabled=pending;
   }
@@ -164,9 +168,9 @@ export function createCompetitionUI({api,onStart,trackId}){
     const status=document.getElementById('ranked-race-status');
     if(trackId!==ORIGINAL_TRACK){status.textContent='Choose the Original map in Race Setup for ranked laps.';return}
     if(!enabled||!signed||!profile){onAccount();return}
-    status.textContent='Preparing your verified lap…';pending=true;controls();
+    status.textContent='Preparing your verified lap…';status.classList.add('is-loading');status.setAttribute('aria-busy','true');pending=true;controls();
     try{await onStart()}catch(error){status.textContent=error.message||'Could not start the ranked lap.'}
-    finally{pending=false;controls()}
+    finally{status.classList.remove('is-loading');status.removeAttribute('aria-busy');pending=false;controls()}
   }
   api.onAuthChange(()=>setTimeout(()=>{void refreshPlayerAccount();if(dialog.open)void refresh()},0));
   controls();
