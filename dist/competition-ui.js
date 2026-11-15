@@ -167,9 +167,14 @@ export function createCompetitionUI({api,onStart,trackId}){
     if(pending)return;
     const status=document.getElementById('ranked-race-status');
     if(trackId!==ORIGINAL_TRACK){status.textContent='Choose the Original map in Race Setup for ranked laps.';return}
-    if(!enabled||!signed||!profile){onAccount();return}
-    status.textContent='Preparing your verified lap…';status.classList.add('is-loading');status.setAttribute('aria-busy','true');pending=true;controls();
-    try{await onStart()}catch(error){status.textContent=error.message||'Could not start the ranked lap.'}
+    status.textContent='Checking your ranked entry…';status.classList.add('is-loading');status.setAttribute('aria-busy','true');pending=true;controls();
+    try{
+      const ready=await refresh();
+      if(!ready||!enabled)throw new Error('Online ranking is unavailable. Please try again.');
+      if(!signed||!profile){onAccount();return}
+      status.textContent='Preparing your verified lap…';
+      await onStart();
+    }catch(error){status.textContent=error.message||'Could not start the ranked lap.'}
     finally{status.classList.remove('is-loading');status.removeAttribute('aria-busy');pending=false;controls()}
   }
   api.onAuthChange(()=>setTimeout(()=>{void refreshPlayerAccount();if(dialog.open)void refresh()},0));
