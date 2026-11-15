@@ -21,6 +21,10 @@
 .competition-identity>span{min-width:0;overflow-wrap:anywhere;color:#e8ddc7;font:13px/1.4 var(--body)}
 .competition-text-button{padding:10px 12px;background:none;flex-shrink:0}
 .competition-identity .competition-text-button{font-size:10px}
+.competition-name-locked{display:grid;gap:6px;margin-top:18px;padding:15px;border:1px solid #edcc8540;background:#edcc8509}
+.competition-name-locked strong{font:700 20px var(--display);color:#f9ecd7;overflow-wrap:anywhere}
+.competition-name-locked small{font:11px/1.5 var(--body);color:#aebda9}
+.competition-form .competition-text-button{min-height:44px}
 #leaderboard-dialog .competition-status{min-height:1.7em;color:#edcc85;overflow-wrap:anywhere}
 #leaderboard-dialog .competition-status[data-error=true]{color:#ffb5a5}
 .competition-launch{padding-left:32px;border-left:1px solid #b5c3aa26}

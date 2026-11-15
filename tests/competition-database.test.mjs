@@ -63,8 +63,9 @@ test('PostgreSQL enforces private beta records, one-use attempts and best-lap ra
       // PostgreSQL rejects NUL at its input parser; every other bad name reaches the constraint.
       await assert.rejects(profile(USERS[1],name),name.includes('\u0000')?/null|byte|encoding/i:/invalid_driver_name/);
     }
-    assert.deepEqual(await profile(USERS[0],'New-name'),{driverName:'New-name'});
-    assert.deepEqual(await rpc('apex_profile_get',[USERS[0]]),{profile:{driverName:'New-name'},best:null});
+    await assert.rejects(profile(USERS[0],'New-name'),/profile_locked/);
+    assert.deepEqual(await profile(USERS[0],'Driver_1'),{driverName:'Driver_1'});
+    assert.deepEqual(await rpc('apex_profile_get',[USERS[0]]),{profile:{driverName:'Driver_1'},best:null});
   });
 
   await t.test('server starts enforce ruleset, ownership profile, cooldown and hourly budget',async()=>{
@@ -152,3 +153,4 @@ test('PostgreSQL enforces private beta records, one-use attempts and best-lap ra
     assert.equal((await db.query('select count(*)::int as count from apex_private.laps')).rows[0].count,0);
   });
 });
+

@@ -16,7 +16,7 @@ export function createCompetitionUI({api,onStart,trackId}){
   const playerAccount=document.getElementById('player-account'),playerAccountLabel=document.getElementById('player-account-label');
   const entry=element('section','competition-entry');entry.setAttribute('aria-label','Verified beta entry');
   const account=element('div','competition-account'),launch=element('div','competition-launch');
-  account.append(element('span','competition-kicker','YOUR PLACE ON THE GRID'),element('h3','','Race under your own name.'));
+  account.append(element('span','competition-kicker','YOUR PLACE ON THE GRID'),element('h3','','Create your driver identity.'));
   const connection=element('p','competition-hint','Connecting to the online beta…');account.append(connection);
 
   const signInForm=element('form','competition-form'),email=field('EMAIL ADDRESS','email','email'),send=button('SEND SIGN-IN LINK');
@@ -27,11 +27,15 @@ export function createCompetitionUI({api,onStart,trackId}){
 
   const signedIn=element('div','competition-identity'),identityText=element('span'),signOut=button('SIGN OUT','competition-text-button');
   signedIn.append(identityText,signOut);signedIn.hidden=true;account.append(signedIn);
-  const profileForm=element('form','competition-form'),name=field('PUBLIC DRIVER NAME','text','driverName'),save=button('SAVE DRIVER NAME');
+  const profileForm=element('form','competition-form'),name=field('PUBLIC DRIVER NAME','text','driverName'),suggest=button('SUGGEST A NAME','competition-text-button'),save=button('CONFIRM PERMANENT NAME');
   name.input.autocomplete='nickname';name.input.required=true;name.input.minLength=3;name.input.maxLength=20;name.input.pattern='[A-Za-z0-9_-]{3,20}';
-  const nameHint=element('p','competition-hint','3–20 letters, numbers, underscores or dashes. Your name appears on the leaderboard.');
+  suggest.type='button';
+  const nameHint=element('p','competition-hint','3–20 letters, numbers, underscores or dashes. Confirming locks it permanently. If a suggestion is taken, generate another.');
   nameHint.id='competition-name-hint';name.input.setAttribute('aria-describedby',nameHint.id);save.type='submit';
-  profileForm.append(name.label,save,nameHint);profileForm.hidden=true;account.append(profileForm);
+  profileForm.append(name.label,suggest,save,nameHint);profileForm.hidden=true;account.append(profileForm);
+  const lockedName=element('div','competition-name-locked');lockedName.hidden=true;
+  lockedName.append(element('span','competition-kicker','YOUR PERMANENT DRIVER NAME'),element('strong'),element('small','','This name is locked and appears on the leaderboard.'));
+  account.append(lockedName);
   const entryStatus=element('p','competition-status');entryStatus.setAttribute('role','status');entryStatus.setAttribute('aria-live','polite');account.append(entryStatus);
 
   launch.append(element('span','competition-kicker','ORIGINAL CIRCUIT · BALANCED'),element('h3','','One clean lap.'));
@@ -51,6 +55,7 @@ export function createCompetitionUI({api,onStart,trackId}){
 
   let enabled=false,signed=false,profile=null,pending=false,generation=0,lastEmail=null,attemptMessage='',dirtyName=false;
   function message(text,isError=false){entryStatus.textContent=text;entryStatus.dataset.error=String(isError)}
+  function suggestedDriverName(){return `Racer-${crypto.randomUUID().slice(0,8).toUpperCase()}`}
   function renderPlayerAccount(name,isSignedIn=signed){
     playerAccountLabel.textContent=name||'SIGN IN WITH GOOGLE';
     playerAccount.setAttribute('aria-label',name?`Signed in as ${name}. Open account settings.`:'Sign in with Google');
@@ -75,7 +80,7 @@ export function createCompetitionUI({api,onStart,trackId}){
   }
   function controls(){
     google.disabled=send.disabled=save.disabled=signOut.disabled=pending||!enabled;
-    email.input.disabled=name.input.disabled=pending||!enabled;
+    email.input.disabled=name.input.disabled=suggest.disabled=pending||!enabled;
     refreshButton.disabled=pending;
   }
   function emptyBoard(title,copy){
@@ -110,7 +115,7 @@ export function createCompetitionUI({api,onStart,trackId}){
       signed=!!identity.signedIn;
       renderPlayerAccount(signed?(identity.email?.split('@')[0]||'SIGNED IN'):'');
       if(lastEmail!==(identity.email||null)){profile=null;dirtyName=false;name.input.value='';attemptMessage='';message('');lastEmail=identity.email||null}
-      google.hidden=signInForm.hidden=emailNote.hidden=signed;signedIn.hidden=profileForm.hidden=!signed;
+      google.hidden=signInForm.hidden=emailNote.hidden=signed;signedIn.hidden=!signed;
       connection.textContent=signed?'SIGNED IN · VERIFIED BETA':'Sign in to save verified laps across devices.';
       identityText.textContent=identity.email||'Signed in';
       const [boardResult,meResult]=await Promise.allSettled([api.leaderboard(),signed?api.me():Promise.resolve(null)]);if(request!==generation)return false;
@@ -119,8 +124,9 @@ export function createCompetitionUI({api,onStart,trackId}){
       if(meResult.status==='fulfilled'){
         profile=meResult.value?.profile||null;
         renderPlayerAccount(signed?(profile?.driverName||identity.email?.split('@')[0]||'SIGNED IN'):'');
-        if(!dirtyName)name.input.value=profile?.driverName||'';
-        save.textContent=profile?'UPDATE DRIVER NAME':'SAVE DRIVER NAME';
+        profileForm.hidden=!signed||!!profile;lockedName.hidden=!signed||!profile;
+        if(profile)lockedName.querySelector('strong').textContent=profile.driverName;
+        if(!dirtyName&&!profile&&!name.input.value)name.input.value=suggestedDriverName();
         const personal=meResult.value?.best;bestTime.textContent=tickTime(personal?.timeTicks);
         bestRank.textContent=personal?`GLOBAL RANK ${personal.rank} · VERIFIED BETA`:signed?'No verified lap yet.':'Sign in to see your verified best.';
         if(!attemptMessage&&!pending)message(signed&&!profile?'Choose the driver name others will see.':'');
@@ -148,8 +154,9 @@ export function createCompetitionUI({api,onStart,trackId}){
     finally{accountBusy=false;playerAccount.disabled=false;void refreshPlayerAccount()}
   });
   google.addEventListener('click',()=>void action(async()=>{google.textContent='OPENING GOOGLE…';try{await api.signInWithGoogle()}finally{google.textContent='CONTINUE WITH GOOGLE'}}));
+  suggest.addEventListener('click',()=>{name.input.value=suggestedDriverName();dirtyName=true;name.input.focus()});
   name.input.addEventListener('input',()=>{dirtyName=true});
-  profileForm.addEventListener('submit',event=>{event.preventDefault();void action(async()=>{save.textContent='SAVING…';try{profile=await api.saveProfile(name.input.value.trim());dirtyName=false;return await refresh()}finally{save.textContent=profile?'UPDATE DRIVER NAME':'SAVE DRIVER NAME'}},'Driver name saved. Your next verified lap is ready.')});
+  profileForm.addEventListener('submit',event=>{event.preventDefault();void action(async()=>{save.textContent='LOCKING NAME…';try{profile=await api.saveProfile(name.input.value.trim());dirtyName=false;return await refresh()}finally{save.textContent='CONFIRM PERMANENT NAME'}},'Permanent driver name saved. Your next verified lap is ready.')});
   signOut.addEventListener('click',()=>void action(async()=>{++generation;await api.signOut();profile=null;signed=false;bestTime.textContent='--:--.---';await refresh()},'Signed out. Practice is still open.'));
   refreshButton.addEventListener('click',()=>void refresh());
   async function startRanked(){
