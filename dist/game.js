@@ -23,6 +23,12 @@ const debugRender=new URLSearchParams(location.search).has('debug');
 let world;
 try { world=mapMode==='classic'?createWorld(canvas,{quality:initialQuality}):await createMapboxWorld(canvas,{quality:initialQuality}); } catch(e) { $('loading').hidden=true;$('webgl-error').hidden=false;$('webgl-error').querySelector('h2').textContent=mapMode==='city'?'The city map could not start':'The game could not start';$('webgl-error').querySelector('p').textContent=e.message;console.error(e);throw e; }
 const {THREE,renderer,scene,camera,track,sun}=world;
+const routeBounds=track.points.reduce((b,p)=>({minX:Math.min(b.minX,p.x),maxX:Math.max(b.maxX,p.x),minZ:Math.min(b.minZ,p.z),maxZ:Math.max(b.maxZ,p.z)}),{minX:Infinity,maxX:-Infinity,minZ:Infinity,maxZ:-Infinity});
+const routeScale=Math.min(456/(routeBounds.maxX-routeBounds.minX),246/(routeBounds.maxZ-routeBounds.minZ));
+const routeLeft=(520-(routeBounds.maxX-routeBounds.minX)*routeScale)/2,routeTop=(310-(routeBounds.maxZ-routeBounds.minZ)*routeScale)/2;
+const routePoints=track.points.filter((_,i)=>i%8===0||i===track.points.length-1);
+const loadingPath='M'+routePoints.map(p=>`${(routeLeft+(p.x-routeBounds.minX)*routeScale).toFixed(1)} ${(routeTop+(p.z-routeBounds.minZ)*routeScale).toFixed(1)}`).join('L')+'Z';
+for(const path of $('loading-circuit').querySelectorAll('path')){path.setAttribute('d',loadingPath);path.setAttribute('pathLength','1000')}
 $('map-select').value=mapMode;
 $('map-choice').textContent=mapMode==='city'?'CITY MAP · BETA ↗':'ORIGINAL MAP ↗';
 $('city-beta-badge').hidden=mapMode!=='city';
