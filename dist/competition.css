@@ -30,6 +30,12 @@
 .competition-best-rank{grid-column:1/-1;font:11px/1.5 var(--body);color:#aebda9}
 .competition-board-actions{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 0}
 .competition-board-actions p{margin:0;font:11px/1.6 var(--body);color:#aebda9}
+.competition-board-stats{margin-left:auto;color:#edcc85;font:700 10px var(--mono);letter-spacing:.5px}
+.race-choice-dialog{width:min(520px,calc(100vw - 32px));padding:30px;background:#1b2020;color:#f9ecd7;border:1px solid #d9c48966}
+.race-choice-dialog h2{font:800 42px/1 var(--display);margin:18px 0 8px}
+.race-choice-dialog h2 span{color:var(--acid)}
+.race-choice-dialog .primary-button,.race-choice-dialog .secondary-button{width:100%;margin-top:12px}
+.race-choice-dialog .race-choice-note{margin:7px 0 17px;font:10px var(--mono);color:#b7bab7}
 .competition-board-actions .competition-text-button{font-size:10px}
 .future-board .competition-result-row>td,.future-board .competition-result-row>th{padding:17px 20px;border-bottom:1px solid #a4b5a21f;background:none}
 .future-board .competition-result-row>.competition-rank{font:600 18px var(--display);color:#aebba9;font-variant-numeric:tabular-nums}
@@ -37,5 +43,6 @@
 .future-board .competition-result-row>.competition-time{font:500 15px var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;color:#f9ecd7}
 .future-board .competition-result-row>.competition-gap{font:10px var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;color:#9baa9f}
 .future-board .competition-podium>.competition-rank{color:#edcc85}
-@media(max-width:760px){#leaderboard-dialog .competition-entry{grid-template-columns:minmax(0,1fr);gap:20px;padding:22px 0}.competition-launch{padding:20px 0 0;border-left:0;border-top:1px solid #b5c3aa26}.competition-rules{max-width:none}.competition-best{margin-top:18px}.competition-board-actions{gap:12px;align-items:flex-start}.future-board .competition-result-row>td,.future-board .competition-result-row>th{padding:15px 10px}.future-board .competition-result-row>.competition-driver{font-size:13px}.future-board .competition-result-row>.competition-time{font-size:12px}.future-board .competition-result-row>.competition-gap{font-size:9px}.future-board .competition-result-row>.competition-rank{font-size:16px}.future-board th:first-child{width:42px}}
+@media(max-width:760px){#leaderboard-dialog .competition-entry{grid-template-columns:minmax(0,1fr);gap:20px;padding:22px 0}.competition-launch{padding:20px 0 0;border-left:0;border-top:1px solid #b5c3aa26}.competition-rules{max-width:none}.competition-best{margin-top:18px}.competition-board-actions{gap:12px;align-items:flex-start;flex-wrap:wrap}.competition-board-stats{margin-left:0}.future-board .competition-result-row>td,.future-board .competition-result-row>th{padding:15px 10px}.future-board .competition-result-row>.competition-driver{font-size:13px}.future-board .competition-result-row>.competition-time{font-size:12px}.future-board .competition-result-row>.competition-gap{font-size:9px}.future-board .competition-result-row>.competition-rank{font-size:16px}.future-board th:first-child{width:42px}}
 @media(max-width:420px){.competition-form>.competition-button{flex:1 0 100%}.competition-best{grid-template-columns:minmax(0,1fr)}.competition-best strong{font-size:26px}.competition-best-rank{grid-column:1}.competition-board-actions{flex-direction:column;gap:8px}.competition-board-actions>.competition-text-button{align-self:flex-end}.future-board .competition-result-row>td,.future-board .competition-result-row>th{padding:14px 7px}.future-board .competition-result-row>.competition-driver{max-width:125px;font-size:12px}.future-board .competition-result-row>.competition-time{font-size:11px}.future-board .competition-result-row>.competition-gap{font-size:8px}.competition-identity{align-items:flex-start}}
+

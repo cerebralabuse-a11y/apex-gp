@@ -39,13 +39,11 @@ export function createVerificationRun(track){
   const offsets=track.corners.map(c=>wrap(c.s-track.start,track.length)).sort((a,b)=>a-b);
   if(offsets.some((s,i)=>!Number.isFinite(s)||s<.001||(i>0&&s-offsets[i-1]<.001)))fail('Circuit gates must be distinct');
   const gates=[gate(track,0,'start')];
-  for(let lap=0;lap<2;lap++){
-    for(const s of offsets)gates.push(gate(track,lap*track.length+s,'corner'));
-    gates.push(gate(track,(lap+1)*track.length,lap===0?'timed-start':'finish'));
-  }
+  for(const s of offsets)gates.push(gate(track,s,'corner'));
+  gates.push(gate(track,track.length,'finish'));
   const car=createVehicle(track,track.start-8,0);
   car.setup='balanced';car.progress=-8;
-  return {track,car,ticks:0,stage:'outlap',invalidReason:null,result:null,gates,nextGate:0,cornerGates:0,timedStartTick:null};
+  return {track,car,ticks:0,stage:'ready',invalidReason:null,result:null,gates,nextGate:0,cornerGates:0,timedStartTick:null};
 }
 
 function invalidate(run,reason){run.stage='invalid';run.invalidReason=reason;return run}
@@ -88,12 +86,12 @@ export function stepVerificationRun(run,frame){
       if(Math.abs(offset)>track.halfWidth+2)return invalidate(run,'Circuit gate crossed outside the road');
       run.nextGate++;
       if(next.kind==='corner')run.cornerGates++;
-      if(next.kind==='timed-start'){
-        run.stage='timed';run.timedStartTick=run.ticks;car.lap=2;
+      if(next.kind==='start'){
+        run.stage='timed';run.timedStartTick=run.ticks;car.lap=1;
       }
       if(next.kind==='finish'){
         const timeTicks=run.ticks-run.timedStartTick;
-        run.stage='complete';car.lap=3;
+        run.stage='complete';car.lap=2;
         run.result={ruleset:RULESET,trackId:track.id,timeTicks,timeMs:Math.round(timeTicks*1e6/TICK_HZ)/1000,totalTicks:run.ticks,gates:run.cornerGates,crossings:run.nextGate,final:{x:car.x,z:car.z,yaw:car.yaw,speed:car.speed,energy:car.energy}};
       }
     }
@@ -109,6 +107,7 @@ export function verifyRecording(track,recording){
     stepVerificationRun(run,recording.frames[i]);
     if(run.stage==='invalid')fail(run.invalidReason);
   }
-  if(run.stage!=='complete')fail('Recording does not include a complete outlap and flying lap');
+  if(run.stage!=='complete')fail('Recording does not include one complete lap');
   return run.result;
 }
+

@@ -7,5 +7,6 @@ export function createRecordedAttempt(ticket,car){
   if(ticket?.ruleset!==RULESET||ticket.trackId!==TRACK_ID||typeof ticket.attemptId!=='string')throw new Error('Unsupported beta attempt');
   const run=createVerificationRun(verificationTrack),recording={version:1,ruleset:RULESET,trackId:TRACK_ID,frames:[]};
   if(car){Object.assign(car,run.car);run.car=car}
-  return{ticket,run,recording,step(raw){const encoded=quantizeInput(raw);recording.frames.push(encoded);stepVerificationRun(run,encoded);return run.stage},invalidate(reason){if(run.stage==='outlap'||run.stage==='timed'){run.stage='invalid';run.invalidReason=reason}}};
+  return{ticket,run,recording,step(raw){const encoded=quantizeInput(raw);recording.frames.push(encoded);stepVerificationRun(run,encoded);return run.stage},invalidate(reason){if(run.stage==='ready'||run.stage==='timed'){run.stage='invalid';run.invalidReason=reason}}};
 }
+

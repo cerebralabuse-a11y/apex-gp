@@ -48,11 +48,13 @@
 .title-hint,.title-tagline{display:none}
 .player-account{position:absolute;z-index:9;top:27px;right:4.2%;display:flex;align-items:center;gap:11px;max-width:min(330px,45vw);min-height:49px;padding:6px 18px 6px 11px;border:1.5px solid #f5c6ff;border-radius:30px;background:linear-gradient(100deg,#542252f2,#35183ff2);box-shadow:inset 0 1px #fff7,0 3px 11px #1f0b3066,0 0 0 3px #d78ae044;color:#fff;font:800 italic 14px var(--display);letter-spacing:.3px;text-shadow:0 1px 4px #210b28;cursor:pointer;transition:filter .15s,transform .15s}
 .player-account:hover,.player-account:focus-visible{filter:brightness(1.18);transform:translateY(-1px);outline:2px solid #ffdc4b;outline-offset:3px}
-.account-mark{display:grid;place-items:center;width:31px;height:31px;border-radius:50%;background:#fff;color:#4285f4;font:900 24px Arial;text-shadow:1px 1px #fbbc05,-1px -1px #34a853;flex:0 0 auto}
+.account-mark{display:grid;place-items:center;width:31px;height:31px;border-radius:50%;background:#fff;flex:0 0 auto}
+.account-mark svg{display:block;width:22px;height:22px}
 .account-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .account-arrow{font:700 19px var(--body);color:#ffe271}
-body.racing .player-account{top:18px;right:20px;min-height:37px;padding:4px 12px 4px 7px;font-size:11px;max-width:220px;backdrop-filter:blur(10px)}
-body.racing .account-mark{width:25px;height:25px;font-size:20px}
+body.racing .player-account{display:none}
+body.racing .player-account.is-signed-in{display:flex;top:18px;right:20px;min-height:32px;padding:4px 10px;background:#171b1cdd;border-color:#edcc8566;font-size:11px;pointer-events:none}
+body.racing .player-account.is-signed-in .account-mark,body.racing .player-account.is-signed-in .account-arrow{display:none}
 body.photo .player-account,body.overview .player-account{display:none}
 body.on-title .title-screen{overflow:hidden}
 body.on-title #arcade-hud,body.on-title .minimap,body.on-title .hud-top,body.on-title .touch-controls,body.on-title .race-message{display:none!important}
@@ -62,3 +64,4 @@ body.on-title #arcade-hud,body.on-title .minimap,body.on-title .hud-top,body.on-
 @media(max-height:680px) and (min-width:641px){.title-screen{padding-top:18px;padding-bottom:15px}.title-content{margin:65px 0 auto;padding:25px 0 20px}.title-content h1{font-size:clamp(62px,7vw,92px);margin-bottom:14px}.title-content h1 small{margin-top:12px}.title-content>p{margin-bottom:12px}.title-nav{gap:5px}.title-nav button{min-height:38px}.title-nav .title-play{min-height:54px}.title-location{bottom:19px}.title-footer{bottom:13px}}
 @media(max-height:560px) and (min-width:641px){.title-content{width:360px;margin:48px 0 auto;padding:18px 0 13px}.title-content h1{font-size:62px}.title-nav button{min-height:32px;font-size:12px}.title-nav .title-play{min-height:42px;font-size:17px}.title-nav button:last-child{margin-top:4px}.title-location{padding:8px 12px}.title-track-name strong{font-size:14px}}
 @media(prefers-reduced-motion:reduce){.player-account,.title-nav button{transition:none}}
+
