@@ -147,7 +147,7 @@ export function createLakesideWorld(canvas,{quality:initialQuality='high'}={}) {
     const park=x<60||z< -440||z>500||(x<380&&z<130);
     if(park)treePoints.push({x,z,size:1.65+random()*1.2});
   }
-  const clearings=[[215,333,27],[237,338,27],[335,397,65],[354,469,80],[421,434,110]].map(([u,v,r])=>({...mapToWorld(u,v),r}));
+  const clearings=[[215,333,27],[217,354,27],[333,360,65],[354,469,80],[390,440,110]].map(([u,v,r])=>({...mapToWorld(u,v),r}));
   for(let i=treePoints.length-1;i>=0;i--){const p=treePoints[i];if(insideLake(p.x,p.z,5)||clearings.some(c=>Math.hypot(p.x-c.x,p.z-c.z)<c.r))treePoints.splice(i,1)}
   const trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.22,.4,6,5),bark,treePoints.length),crowns=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),material('#ffffff'),treePoints.length*4);
   const greens=['#243b21','#3c5526','#53682b','#718139','#405c2d'];
