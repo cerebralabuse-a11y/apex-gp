@@ -33,7 +33,7 @@ export function createLakesideWorld(canvas,{quality:initialQuality='high'}={}) {
   const sky=new THREE.Mesh(new THREE.SphereGeometry(5200,24,12),skyMaterial);scene.add(sky);
   const sunDisc=new THREE.Mesh(new THREE.SphereGeometry(115,12,8),new THREE.MeshBasicMaterial({color:'#fff1b0',toneMapped:false,fog:false}));sunDisc.position.set(1680,190,1200);scene.add(sunDisc);
   const track=createCircuit(),{length,points}=track;
-  const grass=material('#476b32'),road=material('#4b4146'),paving=material('#c48068'),cream=material('#d6c8bc'),wall=material('#7c7e98'),rail=material('#5a5b70'),bark=material('#594331');
+  const grass=material('#476b32'),road=material('#4b4146'),paving=material('#c48068'),cream=material('#d6c8bc'),wall=material('#b9cbd0'),rail=material('#292f33'),bark=material('#594331');
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),grass);ground.rotation.x=-Math.PI/2;ground.position.y=-.18;ground.receiveShadow=true;scene.add(ground);
   function box(parent,w,h,d,mat,x=0,y=0,z=0){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);mesh.position.set(x,y,z);mesh.castShadow=mesh.receiveShadow=true;parent.add(mesh);return mesh}
   function between(parent,a,b,r,mat){const d=b.clone().sub(a),m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),5),mat);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());m.castShadow=true;parent.add(m);return m}
@@ -101,15 +101,36 @@ export function createLakesideWorld(canvas,{quality:initialQuality='high'}={}) {
     const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;const sign=new THREE.Mesh(new THREE.PlaneGeometry(2.5,2.5),new THREE.MeshStandardMaterial({map:texture,side:THREE.DoubleSide}));sign.position.set(0,3,0);sign.rotation.y=Math.PI;board.add(sign);box(board,.12,2,.12,rail,0,1,0);place(board,corner.s-15,12.5);
   }
 
-  // Real rail geometry casts the long lattice shadows visible in the reference.
-  const railCount=Math.ceil(length/.5),postCount=Math.ceil(length/4),rails=new THREE.InstancedMesh(new THREE.BoxGeometry(.05,1.4,.045),rail,railCount*2),posts=new THREE.InstancedMesh(new THREE.BoxGeometry(.13,1.9,.13),rail,postCount*2),dummy=new THREE.Object3D();
-  for(const side of [-1,1]){
-    const offset=side*10.15;scene.add(trackBand(track,offset-.325,offset+.325,-.005,.645,wall));
-    for(const y of [.8,1.15,1.5,1.85,2.2])scene.add(trackBand(track,offset-.035,offset+.035,y-.0275,y+.0275,rail));
-    for(let i=0;i<railCount;i++){const p=sampleTrack(track,i*length/railCount,offset);dummy.position.set(p.x,1.5,p.z);dummy.rotation.set(0,p.yaw,0);dummy.updateMatrix();rails.setMatrixAt(i*2+(side>0?1:0),dummy.matrix)}
-    for(let i=0;i<postCount;i++){const p=sampleTrack(track,i*length/postCount,offset);dummy.position.set(p.x,1.52,p.z);dummy.rotation.set(0,p.yaw,0);dummy.updateMatrix();posts.setMatrixAt(i*2+(side>0?1:0),dummy.matrix)}
+  // Concrete parapets with a continuous metal mesh fence, following every bend.
+  const wallHeight=.82,fenceHeight=2.25,fenceBend=.55,fenceInset=.5,fenceStep=.35,wireCount=Math.ceil(length/fenceStep),postCount=Math.ceil(length/4),
+    wires=new THREE.InstancedMesh(new THREE.BoxGeometry(.025,fenceHeight-fenceBend,.035),rail,wireCount*2),
+    upperWires=new THREE.InstancedMesh(new THREE.BoxGeometry(.025,Math.hypot(fenceBend,fenceInset),.035),rail,wireCount*2),
+    posts=new THREE.InstancedMesh(new THREE.BoxGeometry(.13,fenceHeight-fenceBend+.08,.13),rail,postCount*2),
+    upperPosts=new THREE.InstancedMesh(new THREE.BoxGeometry(.13,Math.hypot(fenceBend,fenceInset),.13),rail,postCount*2),dummy=new THREE.Object3D(),up=new THREE.Vector3(0,1,0);
+  function setFenceBars(mesh,count,topSegment=false){
+    for(let i=0;i<count;i++){
+      const s=i*length/count,sideIndex=i*2;
+      for(const side of [-1,1]){
+        const index=sideIndex+(side>0?1:0),base=sampleTrack(track,s,side*10.15);
+        if(topSegment){
+          const end=sampleTrack(track,s,side*(10.15-fenceInset));
+          const direction=new THREE.Vector3(end.x-base.x,fenceBend,end.z-base.z);
+          dummy.position.set((base.x+end.x)/2,wallHeight+fenceHeight-fenceBend/2,(base.z+end.z)/2);
+          dummy.quaternion.setFromUnitVectors(up,direction.normalize());
+        }else{
+          dummy.position.set(base.x,wallHeight+(fenceHeight-fenceBend)/2,base.z);dummy.rotation.set(0,base.yaw,0);
+        }
+        dummy.scale.set(1,1,1);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+      }
+    }
   }
-  rails.castShadow=posts.castShadow=true;rails.receiveShadow=posts.receiveShadow=true;scene.add(rails,posts);
+  for(const side of [-1,1]){
+    const offset=side*10.15;scene.add(trackBand(track,offset-.325,offset+.325,-.005,wallHeight,wall));
+    for(let y=.25;y<=fenceHeight;y+=.25){const t=THREE.MathUtils.clamp((y-(fenceHeight-fenceBend))/fenceBend,0,1),bend=t*t*(3-2*t),railOffset=side*(10.15-fenceInset*bend);scene.add(trackBand(track,railOffset-.018,railOffset+.018,wallHeight+y-.012,wallHeight+y+.012,rail))}
+  }
+  setFenceBars(wires,wireCount);setFenceBars(upperWires,wireCount,true);
+  setFenceBars(posts,postCount);setFenceBars(upperPosts,postCount,true);
+  for(const mesh of [wires,upperWires,posts,upperPosts])mesh.castShadow=mesh.receiveShadow=true;scene.add(wires,upperWires,posts,upperPosts);
   const racingLine=new THREE.InstancedMesh(new THREE.BoxGeometry(.18,.015,2.2),new THREE.MeshBasicMaterial({color:'#aadc69',transparent:true,opacity:.55}),Math.floor(length/7));
   for(let i=0;i<racingLine.count;i++){const p=sampleTrack(track,i*7);dummy.position.set(p.x,.025,p.z);dummy.rotation.set(0,p.yaw,0);dummy.updateMatrix();racingLine.setMatrixAt(i,dummy.matrix)}racingLine.visible=false;scene.add(racingLine);
 

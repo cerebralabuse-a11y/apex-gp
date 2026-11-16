@@ -11,12 +11,15 @@ function field(labelText,type,name){
   input.type=type;input.name=name;label.append(caption,input);return{label,input};
 }
 
-export function createCompetitionUI({api,onStart,trackId}){
+export function createCompetitionUI({api,onStart,onResumeRanked,trackId}){
   const dialog=document.getElementById('leaderboard-dialog'),table=dialog.querySelector('.future-board'),tbody=table.tBodies[0];
+  const profileDialog=document.getElementById('profile-dialog');
   const playerAccount=document.getElementById('player-account'),playerAccountLabel=document.getElementById('player-account-label');
+  const rankedButton=document.getElementById('ranked-race-button');
   const entry=element('section','competition-entry');entry.setAttribute('aria-label','Verified beta entry');
-  const account=element('div','competition-account'),launch=element('div','competition-launch');
-  account.append(element('span','competition-kicker','YOUR PLACE ON THE GRID'),element('h3','','Race under your own name.'));
+  const account=element('div','competition-account');
+  account.append(element('span','competition-kicker','YOUR DRIVER PROFILE'));
+  const accountHeading=element('h3','','Choose your driver name.');account.append(accountHeading);
   const connection=element('p','competition-hint','Connecting to the online beta…');account.append(connection);
 
   const signInForm=element('form','competition-form'),email=field('EMAIL ADDRESS','email','email'),send=button('SEND SIGN-IN LINK');
@@ -27,18 +30,20 @@ export function createCompetitionUI({api,onStart,trackId}){
 
   const signedIn=element('div','competition-identity'),identityText=element('span'),signOut=button('SIGN OUT','competition-text-button');
   signedIn.append(identityText,signOut);signedIn.hidden=true;account.append(signedIn);
-  const profileForm=element('form','competition-form'),name=field('PUBLIC DRIVER NAME','text','driverName'),save=button('SAVE DRIVER NAME');
+  const profileForm=element('form','competition-form'),name=field('PUBLIC DRIVER NAME','text','driverName'),suggest=button('SUGGEST A NAME','competition-text-button'),save=button('CONFIRM PERMANENT NAME');
   name.input.autocomplete='nickname';name.input.required=true;name.input.minLength=3;name.input.maxLength=20;name.input.pattern='[A-Za-z0-9_-]{3,20}';
-  const nameHint=element('p','competition-hint','3–20 letters, numbers, underscores or dashes. Your name appears on the leaderboard.');
+  suggest.type='button';
+  const nameHint=element('p','competition-hint','3–20 letters, numbers, underscores or dashes. Confirming locks it permanently. If a suggestion is taken, generate another.');
   nameHint.id='competition-name-hint';name.input.setAttribute('aria-describedby',nameHint.id);save.type='submit';
-  profileForm.append(name.label,save,nameHint);profileForm.hidden=true;account.append(profileForm);
+  profileForm.append(name.label,suggest,save,nameHint);profileForm.hidden=true;account.append(profileForm);
+  const lockedName=element('div','competition-name-locked');lockedName.hidden=true;
+  lockedName.append(element('span','competition-kicker','YOUR PERMANENT DRIVER NAME'),element('strong'),element('small','','This name is locked and appears on the leaderboard.'));
+  account.append(lockedName);
   const entryStatus=element('p','competition-status');entryStatus.setAttribute('role','status');entryStatus.setAttribute('aria-live','polite');account.append(entryStatus);
 
-  launch.append(element('span','competition-kicker','ORIGINAL CIRCUIT · BALANCED'),element('h3','','One clean lap.'));
-  const rules=element('p','competition-rules','Cross the start line, complete one lap, and cross it again. Stay within the circuit limits. Pausing, leaving the game or recovering ends the attempt.');
   const best=element('div','competition-best'),bestLabel=element('span','competition-kicker','YOUR VERIFIED BETA BEST'),bestTime=element('strong','','--:--.---'),bestRank=element('span','competition-best-rank','No verified lap yet.');
-  best.append(bestLabel,bestTime,bestRank);launch.append(rules,best);entry.append(account,launch);
-  dialog.querySelector('.board-circuit').before(entry);
+  best.append(bestLabel,bestTime,bestRank);account.append(best);entry.append(account);
+  profileDialog.querySelector('.profile-content').append(entry);
 
   const boardActions=element('div','competition-board-actions'),boardState=element('p','','Loading global standings…'),boardStats=element('div','competition-board-stats'),refreshButton=button('REFRESH STANDINGS','competition-text-button');
   boardState.setAttribute('role','status');boardState.setAttribute('aria-live','polite');boardActions.append(boardState,boardStats,refreshButton);dialog.querySelector('.board-table-wrap').before(boardActions);
@@ -49,33 +54,54 @@ export function createCompetitionUI({api,onStart,trackId}){
   dialog.querySelector('.board-footer-note').textContent='Beta standings do not award prizes. Verified beta laps and browser-only practice records are separate. Equal tick times share a rank.';
   const menuTag=document.querySelector('#leaderboard-menu .menu-soon');if(menuTag)menuTag.textContent='BETA';
 
+  const resumeRankedKey='apex-resume-ranked',authCallback=new URLSearchParams(location.search).get('auth')==='callback';
+  let resumeRanked=false;
+  try{resumeRanked=authCallback&&sessionStorage.getItem(resumeRankedKey)==='1';if(!authCallback)sessionStorage.removeItem(resumeRankedKey)}catch{}
+  function clearRankedResume(){resumeRanked=false;try{sessionStorage.removeItem(resumeRankedKey)}catch{}}
+  function continueRanked(){if(!resumeRanked||!profile)return;clearRankedResume();onResumeRanked?.()}
   let enabled=false,signed=false,profile=null,pending=false,generation=0,lastEmail=null,attemptMessage='',dirtyName=false;
   function message(text,isError=false){entryStatus.textContent=text;entryStatus.dataset.error=String(isError)}
+  function suggestedDriverName(){return `Racer-${crypto.randomUUID().slice(0,8).toUpperCase()}`}
   function renderPlayerAccount(name,isSignedIn=signed){
-    playerAccountLabel.textContent=name||'SIGN IN WITH GOOGLE';
+    playerAccountLabel.textContent=isSignedIn?(name||'PROFILE'):'SIGN IN WITH GOOGLE';
+    playerAccount.querySelector('.account-mark').innerHTML=isSignedIn?'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21c.5-4.1 3.2-6.3 7.5-6.3s7 2.2 7.5 6.3z"/></svg>':'<svg viewBox="0 0 48 48"><path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11c-.5 2.5-1.9 4.6-4 6v5h6.5c3.8-3.5 6.1-8.6 6.1-14.7z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.8l-6.5-5c-1.8 1.2-4.1 2-7 2-5.3 0-9.8-3.6-11.4-8.4h-6.7v5.2C9.3 39.6 16 44 24 44z"/><path fill="#FBBC05" d="M12.6 27.8a12 12 0 0 1 0-7.6V15H5.9a20 20 0 0 0 0 18z"/><path fill="#EA4335" d="M24 11.8c3 0 5.7 1 7.8 3.1l5.8-5.8C34.1 5.8 29.5 4 24 4 16 4 9.3 8.4 5.9 15l6.7 5.2c1.6-4.8 6.1-8.4 11.4-8.4z"/></svg>';
+    const mobileDriver=document.getElementById('mobile-driver');
+    mobileDriver.textContent=name||'';mobileDriver.hidden=!isSignedIn;
     playerAccount.setAttribute('aria-label',name?`Signed in as ${name}. Open account settings.`:'Sign in with Google');
     playerAccount.title=name?`Signed in as ${name}. Open account settings.`:'Sign in with Google';
     playerAccount.classList.toggle('is-signed-in',isSignedIn);
+    playerAccount.querySelector('.account-arrow').textContent=isSignedIn?'⌄':'↗';
   }
   let accountGeneration=0,accountBusy=false;
   async function refreshPlayerAccount(){
     const request=++accountGeneration;
     try{
       const config=await api.ready();if(request!==accountGeneration)return;
-      playerAccount.disabled=!config.enabled;
+      enabled=!!config.enabled;playerAccount.disabled=!enabled;controls();
       if(!config.enabled){signed=false;profile=null;renderPlayerAccount('ONLINE SIGN-IN UNAVAILABLE',false);return}
       const identity=await api.identity();if(request!==accountGeneration)return;
       signed=!!identity.signedIn;
       const fallback=identity.signedIn?(identity.email?.split('@')[0]||'SIGNED IN'):'';
       renderPlayerAccount(fallback,signed);
       if(identity.signedIn){
-        try{const me=await api.me();if(request===accountGeneration){profile=me?.profile||null;renderPlayerAccount(profile?.driverName||fallback,true)}}catch{}
+        try{const me=await api.me();if(request===accountGeneration){
+          profile=me?.profile||null;renderPlayerAccount(profile?.driverName||fallback,true);
+          google.hidden=signInForm.hidden=emailNote.hidden=true;identityText.textContent=identity.email||'Signed in';signedIn.hidden=false;
+          profileForm.hidden=!!profile;lockedName.hidden=!profile;
+          accountHeading.textContent=profile?'Your identity is locked.':'Choose your driver name.';
+          if(profile)lockedName.querySelector('strong').textContent=profile.driverName;
+          else if(!dirtyName&&!name.input.value)name.input.value=suggestedDriverName();
+          if(!profile&&!profileDialog.open){onAccount();setTimeout(()=>name.input.focus({preventScroll:true}),0)}else continueRanked();
+        }}catch{}
+      }else{
+        profile=null;google.hidden=signInForm.hidden=emailNote.hidden=false;signedIn.hidden=true;profileForm.hidden=true;lockedName.hidden=true;
       }
     }catch{if(request===accountGeneration){playerAccount.disabled=false;renderPlayerAccount('SIGN IN WITH GOOGLE',false)}}
   }
   function controls(){
     google.disabled=send.disabled=save.disabled=signOut.disabled=pending||!enabled;
-    email.input.disabled=name.input.disabled=pending||!enabled;
+    rankedButton.disabled=pending;
+    email.input.disabled=name.input.disabled=suggest.disabled=pending||!enabled;
     refreshButton.disabled=pending;
   }
   function emptyBoard(title,copy){
@@ -110,7 +136,7 @@ export function createCompetitionUI({api,onStart,trackId}){
       signed=!!identity.signedIn;
       renderPlayerAccount(signed?(identity.email?.split('@')[0]||'SIGNED IN'):'');
       if(lastEmail!==(identity.email||null)){profile=null;dirtyName=false;name.input.value='';attemptMessage='';message('');lastEmail=identity.email||null}
-      google.hidden=signInForm.hidden=emailNote.hidden=signed;signedIn.hidden=profileForm.hidden=!signed;
+      google.hidden=signInForm.hidden=emailNote.hidden=signed;signedIn.hidden=!signed;
       connection.textContent=signed?'SIGNED IN · VERIFIED BETA':'Sign in to save verified laps across devices.';
       identityText.textContent=identity.email||'Signed in';
       const [boardResult,meResult]=await Promise.allSettled([api.leaderboard(),signed?api.me():Promise.resolve(null)]);if(request!==generation)return false;
@@ -119,8 +145,11 @@ export function createCompetitionUI({api,onStart,trackId}){
       if(meResult.status==='fulfilled'){
         profile=meResult.value?.profile||null;
         renderPlayerAccount(signed?(profile?.driverName||identity.email?.split('@')[0]||'SIGNED IN'):'');
-        if(!dirtyName)name.input.value=profile?.driverName||'';
-        save.textContent=profile?'UPDATE DRIVER NAME':'SAVE DRIVER NAME';
+        profileForm.hidden=!signed||!!profile;lockedName.hidden=!signed||!profile;signedIn.hidden=!signed;
+        accountHeading.textContent=profile?'Your identity is locked.':'Choose your driver name.';
+        if(profile)lockedName.querySelector('strong').textContent=profile.driverName;
+        if(!dirtyName&&!profile&&!name.input.value)name.input.value=suggestedDriverName();
+        if(signed&&!profile&&!profileDialog.open){onAccount();setTimeout(()=>name.input.focus({preventScroll:true}),0)}
         const personal=meResult.value?.best;bestTime.textContent=tickTime(personal?.timeTicks);
         bestRank.textContent=personal?`GLOBAL RANK ${personal.rank} · VERIFIED BETA`:signed?'No verified lap yet.':'Sign in to see your verified best.';
         if(!attemptMessage&&!pending)message(signed&&!profile?'Choose the driver name others will see.':'');
@@ -148,21 +177,30 @@ export function createCompetitionUI({api,onStart,trackId}){
     finally{accountBusy=false;playerAccount.disabled=false;void refreshPlayerAccount()}
   });
   google.addEventListener('click',()=>void action(async()=>{google.textContent='OPENING GOOGLE…';try{await api.signInWithGoogle()}finally{google.textContent='CONTINUE WITH GOOGLE'}}));
+  suggest.addEventListener('click',()=>{name.input.value=suggestedDriverName();dirtyName=true;name.input.focus()});
   name.input.addEventListener('input',()=>{dirtyName=true});
-  profileForm.addEventListener('submit',event=>{event.preventDefault();void action(async()=>{save.textContent='SAVING…';try{profile=await api.saveProfile(name.input.value.trim());dirtyName=false;return await refresh()}finally{save.textContent=profile?'UPDATE DRIVER NAME':'SAVE DRIVER NAME'}},'Driver name saved. Your next verified lap is ready.')});
+  profileForm.addEventListener('submit',event=>{event.preventDefault();void action(async()=>{save.textContent='LOCKING NAME…';try{profile=await api.saveProfile(name.input.value.trim());dirtyName=false;lockedName.querySelector('strong').textContent=profile.driverName;profileForm.hidden=true;lockedName.hidden=false;renderPlayerAccount(profile.driverName,true);profileDialog.close();if(resumeRanked)setTimeout(continueRanked,0);return true}finally{save.textContent='CONFIRM PERMANENT NAME'}},'Permanent driver name saved. Your next verified lap is ready.')});
+  profileDialog.addEventListener('close',()=>{if(!profile)clearRankedResume()});
   signOut.addEventListener('click',()=>void action(async()=>{++generation;await api.signOut();profile=null;signed=false;bestTime.textContent='--:--.---';await refresh()},'Signed out. Practice is still open.'));
   refreshButton.addEventListener('click',()=>void refresh());
   async function startRanked(){
     if(pending)return;
     const status=document.getElementById('ranked-race-status');
     if(trackId!==ORIGINAL_TRACK){status.textContent='Choose the Original map in Race Setup for ranked laps.';return}
-    if(!enabled||!signed||!profile){onAccount();return}
-    status.textContent='Preparing your verified lap…';pending=true;controls();
-    try{await onStart()}catch(error){status.textContent=error.message||'Could not start the ranked lap.'}
-    finally{pending=false;controls()}
+    if(!signed||!profile){resumeRanked=true;try{sessionStorage.setItem(resumeRankedKey,'1')}catch{}}
+    status.textContent='Checking your ranked entry…';status.classList.add('is-loading');status.setAttribute('aria-busy','true');pending=true;controls();
+    try{
+      const ready=await refresh();
+      if(!ready||!enabled){clearRankedResume();throw new Error('Online ranking is unavailable. Please try again.')}
+      if(!signed||!profile){onAccount();return}
+      clearRankedResume();
+      status.textContent='Preparing your verified lap…';
+      await onStart();
+    }catch(error){status.textContent=error.message||'Could not start the ranked lap.'}
+    finally{status.classList.remove('is-loading');status.removeAttribute('aria-busy');pending=false;controls()}
   }
   api.onAuthChange(()=>setTimeout(()=>{void refreshPlayerAccount();if(dialog.open)void refresh()},0));
   controls();
   void refreshPlayerAccount();
-  return{open:refresh,refresh,refreshPlayerAccount,showAttemptStatus,startRanked};
+  return{open:refresh,openProfile:refreshPlayerAccount,refresh,refreshPlayerAccount,showAttemptStatus,startRanked};
 }

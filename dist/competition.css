@@ -21,8 +21,23 @@
 .competition-identity>span{min-width:0;overflow-wrap:anywhere;color:#e8ddc7;font:13px/1.4 var(--body)}
 .competition-text-button{padding:10px 12px;background:none;flex-shrink:0}
 .competition-identity .competition-text-button{font-size:10px}
+.competition-name-locked{display:grid;gap:6px;margin-top:18px;padding:15px;border:1px solid #edcc8540;background:#edcc8509}
+.competition-name-locked strong{font:700 20px var(--display);color:#f9ecd7;overflow-wrap:anywhere}
+.competition-name-locked small{font:11px/1.5 var(--body);color:#aebda9}
+.competition-form .competition-text-button{min-height:44px}
 #leaderboard-dialog .competition-status{min-height:1.7em;color:#edcc85;overflow-wrap:anywhere}
 #leaderboard-dialog .competition-status[data-error=true]{color:#ffb5a5}
+#profile-dialog{width:min(470px,calc(100% - 32px));padding:28px;background:#151d1e;color:#f9ecd7}
+#profile-dialog h2{font:700 42px var(--display);margin:13px 0 5px}
+#profile-dialog>p{margin:0 0 18px;font-size:12px;color:#a6b4ac}
+#profile-dialog .competition-entry{display:block;margin:0;padding:0;border:0}
+#profile-dialog .competition-entry h3{font:600 23px/1.15 var(--display);margin:8px 0}
+#profile-dialog .competition-entry p{font:12px/1.6 var(--body);margin:8px 0;color:#b9c0b3}
+#profile-dialog .competition-identity{margin:12px 0 18px}
+#profile-dialog .competition-name-locked{margin-top:14px}
+#profile-dialog .competition-best{margin-top:17px}
+#profile-dialog .competition-status{min-height:1.7em;color:#edcc85;overflow-wrap:anywhere}
+#profile-dialog .competition-status[data-error=true]{color:#ffb5a5}
 .competition-launch{padding-left:32px;border-left:1px solid #b5c3aa26}
 .competition-rules{max-width:420px}
 .competition-best{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:8px 16px;margin-top:22px;padding-top:17px;border-top:1px solid #a8b7a42b}
@@ -36,6 +51,10 @@
 .race-choice-dialog h2 span{color:var(--acid)}
 .race-choice-dialog .primary-button,.race-choice-dialog .secondary-button{width:100%;margin-top:12px}
 .race-choice-dialog .race-choice-note{margin:7px 0 17px;font:10px var(--mono);color:#b7bab7}
+#ranked-race-status.is-loading{display:flex;align-items:center;gap:9px}
+#ranked-race-status.is-loading::before{content:"";width:14px;height:14px;flex:0 0 14px;border:2px solid #edcc8544;border-top-color:var(--acid);border-radius:50%;animation:ranked-progress .75s linear infinite}
+@keyframes ranked-progress{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){#ranked-race-status.is-loading::before{animation:none;border-color:var(--acid)}}
 .competition-board-actions .competition-text-button{font-size:10px}
 .future-board .competition-result-row>td,.future-board .competition-result-row>th{padding:17px 20px;border-bottom:1px solid #a4b5a21f;background:none}
 .future-board .competition-result-row>.competition-rank{font:600 18px var(--display);color:#aebba9;font-variant-numeric:tabular-nums}

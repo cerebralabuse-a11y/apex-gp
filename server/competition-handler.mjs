@@ -4,7 +4,7 @@ import {verificationTrack} from '../dist/verification-track.js';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const messages={
-  profile_required:'Choose a driver name before starting.', name_taken:'That driver name is already taken.', invalid_driver_name:'Use 3–20 letters, numbers, underscores or hyphens.',
+  profile_required:'Choose a driver name before starting.', name_taken:'That driver name is already taken.', profile_locked:'Your driver name is permanent after confirmation.', invalid_driver_name:'Use 3–20 letters, numbers, underscores or hyphens.',
   rate_limited:'Too many attempts. Please wait before starting another.', attempt_not_found:'Attempt not found for this player.', attempt_expired:'This attempt expired. Start a new lap.',
   attempt_too_early:'The recording finished faster than real time. Try again after the lap duration has elapsed.', attempt_in_progress:'Verification is already running. Retry in a minute.',
   attempt_used:'This attempt has already been used.', replay_duplicate:'This exact recording has already been submitted.', unsupported_ruleset:'This game version is no longer accepted.',
