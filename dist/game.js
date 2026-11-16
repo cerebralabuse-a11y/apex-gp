@@ -454,7 +454,7 @@ function openDialog(id){
   if(roomRaceActive&&(state==='racing'||state==='countdown')){notify('ROOM CONTROLS ARE LOCKED DURING THE RACE',2);return}
   if(document.querySelector('dialog[open]'))return;
   if(verifiedSession&&(state==='racing'||state==='countdown'))invalidateVerified('Opening a menu ended the beta attempt. Start again when ready.');
-  if(id==='leaderboard-dialog')$('board-personal-best').textContent=personalBest>0?formatTime(personalBest):'--:--.---';
+  if(id==='leaderboard-dialog'){const practice=$('board-personal-best');practice.textContent=personalBest>0?formatTime(personalBest):'--:--.---';practice.dataset.timeTicks=Number.isFinite(personalBest)&&personalBest>0?String(Math.round(personalBest*120)):''}
   dialogReturn=state;if(state==='racing'||state==='countdown')state='paused';clearInputs();$(id).showModal();
   if(id==='leaderboard-dialog')void competitionUI.open();
   if(id==='profile-dialog')void competitionUI.open();
