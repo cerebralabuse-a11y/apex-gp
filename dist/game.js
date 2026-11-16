@@ -23,12 +23,6 @@ const debugRender=new URLSearchParams(location.search).has('debug');
 let world;
 try { world=mapMode==='classic'?createWorld(canvas,{quality:initialQuality}):await createMapboxWorld(canvas,{quality:initialQuality}); } catch(e) { $('loading').hidden=true;$('webgl-error').hidden=false;$('webgl-error').querySelector('h2').textContent=mapMode==='city'?'The city map could not start':'The game could not start';$('webgl-error').querySelector('p').textContent=e.message;console.error(e);throw e; }
 const {THREE,renderer,scene,camera,track,sun}=world;
-const routeBounds=track.points.reduce((b,p)=>({minX:Math.min(b.minX,p.x),maxX:Math.max(b.maxX,p.x),minZ:Math.min(b.minZ,p.z),maxZ:Math.max(b.maxZ,p.z)}),{minX:Infinity,maxX:-Infinity,minZ:Infinity,maxZ:-Infinity});
-const routeScale=Math.min(456/(routeBounds.maxX-routeBounds.minX),246/(routeBounds.maxZ-routeBounds.minZ));
-const routeLeft=(520-(routeBounds.maxX-routeBounds.minX)*routeScale)/2,routeTop=(310-(routeBounds.maxZ-routeBounds.minZ)*routeScale)/2;
-const routePoints=track.points.filter((_,i)=>i%8===0||i===track.points.length-1);
-const loadingPath='M'+routePoints.map(p=>`${(routeLeft+(p.x-routeBounds.minX)*routeScale).toFixed(1)} ${(routeTop+(p.z-routeBounds.minZ)*routeScale).toFixed(1)}`).join('L')+'Z';
-for(const path of $('loading-circuit').querySelectorAll('path')){path.setAttribute('d',loadingPath);path.setAttribute('pathLength','1000')}
 $('map-select').value=mapMode;
 $('map-choice').textContent=mapMode==='city'?'CITY MAP · BETA ↗':'ORIGINAL MAP ↗';
 $('city-beta-badge').hidden=mapMode!=='city';
@@ -44,14 +38,14 @@ let cars=[],player,selectedColor=storage.get('color','#a2cf3e'),personalBest=Num
 let selectedSetup=setupId(storage.get('car-setup','balanced')),activeSetup=selectedSetup;
 let pendingVerifiedTicket=null,verifiedSession=null,submittingVerified=false,verifiedStartGeneration=0;
 const competition=createCompetitionClient();
-const competitionUI=createCompetitionUI({api:competition,trackId:track.id,onAccount:()=>{for(const id of ['race-choice-dialog','rooms-dialog'])if($(id)?.open)$(id).close();openDialog('profile-dialog')},onResumeRanked:()=>{openDialog('race-choice-dialog');void competitionUI.startRanked()},onStart:async()=>{
+const competitionUI=createCompetitionUI({api:competition,trackId:track.id,onAccount:()=>{if($('race-choice-dialog').open)$('race-choice-dialog').close();openDialog('leaderboard-dialog')},onStart:async()=>{
   if(mapMode!=='classic')throw new Error('Verified beta laps use the original map.');
   const generation=++verifiedStartGeneration,ticket=await competition.startAttempt();
   if(generation!==verifiedStartGeneration||!$('race-choice-dialog').open)throw new Error('Attempt cancelled. Start a new one when ready.');
   $('race-choice-dialog').close();pendingVerifiedTicket=ticket;startRace();
 }});
 const roomClient=createRoomClient({api:competition});
-const roomsUI=createRoomsUI({api:competition,client:roomClient,onAccount:()=>{if($('rooms-dialog').open)$('rooms-dialog').close();openDialog('profile-dialog')}});
+const roomsUI=createRoomsUI({api:competition,client:roomClient,onAccount:()=>openDialog('leaderboard-dialog')});
 let roomRaceActive=false,roomRaceStartAt=0,roomRaceResults=[];
 let motionSetting=storage.get('camera-effects','full');
 if(!['full','subtle','off'].includes(motionSetting))motionSetting='full';
@@ -150,9 +144,9 @@ function resetGrid({verifiedTicket=null,roomPlayers=null,roomSelfId=null}={}){
     car.setup=isPlayer?activeSetup:'balanced';car.mesh=buildCar(car.color,isPlayer?27:11+i*7);scene.add(car.mesh);cars.push(car);if(isPlayer)player=car;
   }
   if(verifiedTicket)verifiedSession=createRecordedAttempt(verifiedTicket,player);
+  $('verified-retry')?.remove();
   raceTime=0;sessionBest=Infinity;countdown=0;accumulator=0;messageRemaining=0;$('race-message').classList.remove('show');
   $('finish-card').hidden=true;$('start-lights').hidden=true;$('menu-card').hidden=false;
-  $('race-again').disabled=false;$('verified-retry')?.remove();$('ranked-retry')?.remove();
   document.body.classList.remove('racing');document.body.classList.add('on-title');$('session-tag').innerHTML='<i></i> ON THE GRID';
   $('lap-total').textContent=verifiedTicket?'/ 01':mode==='race'||mode==='room'?'/ 03':'/ ∞';
   const facts=document.querySelectorAll('.menu-facts b');facts[0].textContent=mode==='race'?'03':'∞';facts[1].textContent=String(total).padStart(2,'0');
@@ -329,9 +323,7 @@ function invalidateVerified(reason){
 function finishVerified(){
   const run=verifiedSession.run;player.lapTimes=[run.result.timeMs/1000];sessionBest=run.result.timeMs/1000;
   verifiedFinishCard('LAP COMPLETE.','The server is replaying your inputs. Prizes are not active.');
-  $('race-again').disabled=true;
   const retry=document.createElement('button');retry.id='verified-retry';retry.className='primary-button';retry.textContent='RETRY SAVE';retry.hidden=true;retry.addEventListener('click',()=>submitVerified(verifiedSession));$('finish-card').append(retry);
-  const retryLap=document.createElement('button');retryLap.id='ranked-retry';retryLap.className='secondary-button';retryLap.textContent='RETRY RANKED LAP';retryLap.hidden=true;retryLap.addEventListener('click',()=>{openDialog('race-choice-dialog');void competitionUI.startRanked()});$('finish-card').append(retryLap);
   updateUI();void submitVerified(verifiedSession);
 }
 async function submitVerified(session){
@@ -341,7 +333,7 @@ async function submitVerified(session){
     const receipt=await competition.submit(session.ticket.attemptId,session.recording);
     if(!receipt.saved)throw new Error('The server did not save this attempt.');
     competitionUI.showAttemptStatus('Lap verified and saved to the beta leaderboard. Prizes are not active.');
-    if(verifiedSession===session){$('finish-title').textContent='LAP VERIFIED.';$('finish-subtitle').textContent='Saved to the global beta leaderboard. Prizes are not active.';$('finish-best').textContent='SAVED';$('race-again').disabled=false;$('ranked-retry').hidden=false}
+    if(verifiedSession===session){$('finish-title').textContent='LAP VERIFIED.';$('finish-subtitle').textContent='Saved to the global beta leaderboard. Prizes are not active.';$('finish-best').textContent='SAVED'}
   }catch(error){
     competitionUI.showAttemptStatus(error.message);
     if(verifiedSession===session){$('finish-subtitle').textContent=error.message;$('finish-best').textContent='UNSAVED';if(retry)retry.hidden=false}
@@ -462,7 +454,6 @@ function openDialog(id){
   if(id==='leaderboard-dialog')$('board-personal-best').textContent=personalBest>0?formatTime(personalBest):'--:--.---';
   dialogReturn=state;if(state==='racing'||state==='countdown')state='paused';clearInputs();$(id).showModal();
   if(id==='leaderboard-dialog')void competitionUI.open();
-  if(id==='profile-dialog')void competitionUI.openProfile();
   if(id==='rooms-dialog')void roomsUI.open();
   if(id==='garage-dialog')garage.open({color:selectedColor,setup:selectedSetup,locked:dialogReturn!=='menu'&&dialogReturn!=='finished'});
 }
@@ -492,7 +483,7 @@ $('camera-button').addEventListener('click',cycleCamera);
 $('pause-button').addEventListener('click',()=>roomRaceActive?roomClient.leave():togglePause());
 $('pause-setup').addEventListener('click',()=>{const from=pausedFrom;$('pause-dialog').close();openDialog('settings-dialog');dialogReturn=from});
 $('rotate-back').addEventListener('click',()=>{if(rotationPaused){state='menu';pendingMobileStart=rotationPaused=false;resetGrid();return}void requestLandscape()});
-$('touch-recover').addEventListener('click',()=>{if(state==='racing'){clearInputs();recover(player)}});
+const mobileRecover=document.createElement('button');mobileRecover.id='mobile-recover';mobileRecover.className='glass-icon';mobileRecover.textContent='↻';mobileRecover.setAttribute('aria-label','Recover to circuit');mobileRecover.addEventListener('click',()=>{if(state==='racing'){clearInputs();recover(player)}});document.querySelector('.session-actions').appendChild(mobileRecover);
 $('resume-button').addEventListener('click',togglePause);
 $('restart-button').addEventListener('click',()=>{$('pause-dialog').close();startRace()});
 $('quit-button').addEventListener('click',()=>{state='menu';$('pause-dialog').close();resetGrid()});
@@ -557,3 +548,4 @@ else if(launchParams.get('auth')==='callback')void competition.ready().then(()=>
 requestAnimationFrame(timestamp=>{lastTime=timestamp;frame(timestamp);$('loading').style.opacity='0';setTimeout(()=>$('loading').hidden=true,550)});
 // Read-only telemetry is useful for race replays, accessibility tools, and QA.
 window.apex={get telemetry(){return{state,mode,time:raceTime,position:sortedCars().indexOf(player)+1,lap:player.lap,speed:player.speed*3.6,energy:player.energy,roadOffset:player.road.offset,progress:player.progress,trackLength:track.length,drivers:cars.map(c=>({name:c.name,speed:c.speed*3.6,offset:c.road.offset,progress:c.progress,lap:c.lap}))}},get renderer(){return renderer.info.render}};
+

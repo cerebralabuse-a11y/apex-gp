@@ -73,3 +73,4 @@ language sql security invoker set search_path = '' as $$
       from apex_private.standings s
     ), '[]'::jsonb));
 $$;
+

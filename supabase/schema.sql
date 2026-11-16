@@ -247,3 +247,4 @@ grant execute on function public.apex_profile_get(uuid), public.apex_profile_set
   public.apex_begin_attempt(uuid, text, text), public.apex_claim_attempt(uuid, uuid, text, integer),
   public.apex_finish_attempt(uuid, uuid, text, jsonb, text), public.apex_leaderboard()
   to service_role;
+

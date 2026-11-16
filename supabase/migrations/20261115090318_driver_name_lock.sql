@@ -32,3 +32,4 @@ exception when unique_violation then
   raise exception using errcode = 'P0001', message = 'name_taken';
 end;
 $$;
+

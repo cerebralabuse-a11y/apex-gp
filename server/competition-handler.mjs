@@ -94,3 +94,4 @@ export function createCompetitionHandler({supabaseUrl,publishableKey,secretKey,a
     }
   };
 }
+

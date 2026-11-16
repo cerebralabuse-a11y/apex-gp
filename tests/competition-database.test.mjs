@@ -153,3 +153,4 @@ test('PostgreSQL enforces private beta records, one-use attempts and best-lap ra
     assert.equal((await db.query('select count(*)::int as count from apex_private.laps')).rows[0].count,0);
   });
 });
+

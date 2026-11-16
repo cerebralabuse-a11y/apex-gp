@@ -110,3 +110,4 @@ export function verifyRecording(track,recording){
   if(run.stage!=='complete')fail('Recording does not include one complete lap');
   return run.result;
 }
+

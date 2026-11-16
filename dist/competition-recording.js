@@ -9,3 +9,4 @@ export function createRecordedAttempt(ticket,car){
   if(car){Object.assign(car,run.car);run.car=car}
   return{ticket,run,recording,step(raw){const encoded=quantizeInput(raw);recording.frames.push(encoded);stepVerificationRun(run,encoded);return run.stage},invalidate(reason){if(run.stage==='ready'||run.stage==='timed'){run.stage='invalid';run.invalidReason=reason}}};
 }
+
