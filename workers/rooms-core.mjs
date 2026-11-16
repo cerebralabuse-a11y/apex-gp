@@ -6,7 +6,7 @@ export const MIN_PLAYERS=2,MAX_PLAYERS=8;
 const CODE=/^[A-HJ-NP-Z2-9]{8}$/,UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const COLORS=['#a2cf3e','#37c6ca','#e7a129','#4c68d9','#eeeecc','#ab82ca','#eb733f','#4caa75'];
-const DEFAULT_ORIGINS=['https://apex-gp-kohl.vercel.app','https://apex-gp-git-codex-private-ba4907-aayush-sonis-projects-b4cb9b45.vercel.app','http://127.0.0.1:4173','http://localhost:4173','http://127.0.0.1:4190','http://localhost:4190','http://127.0.0.1:5188','http://localhost:5188'];
+const DEFAULT_ORIGINS=['https://apexgp.online','https://www.apexgp.online','https://apex-gp-kohl.vercel.app','https://apex-gp-git-codex-private-ba4907-aayush-sonis-projects-b4cb9b45.vercel.app','http://127.0.0.1:4173','http://localhost:4173','http://127.0.0.1:4190','http://localhost:4190','http://127.0.0.1:5188','http://localhost:5188'];
 const json=(status,data,headers={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
 const randomCode=()=>Array.from(crypto.getRandomValues(new Uint8Array(8)),v=>ALPHABET[v%32]).join('');
 const randomTicket=()=>Array.from(crypto.getRandomValues(new Uint8Array(24)),v=>v.toString(16).padStart(2,'0')).join('');

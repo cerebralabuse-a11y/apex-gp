@@ -6,7 +6,7 @@ const handle=createCompetitionHandler({
   supabaseUrl:Deno.env.get('SUPABASE_URL'),
   publishableKey:keys('SUPABASE_PUBLISHABLE_KEYS').default||Deno.env.get('SUPABASE_ANON_KEY'),
   secretKey:keys('SUPABASE_SECRET_KEYS').default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
-  allowedOrigins:['https://apex-gp-kohl.vercel.app','http://127.0.0.1:5188','http://localhost:5188','http://127.0.0.1:4173','http://localhost:4173']
+  allowedOrigins:['https://apexgp.online','https://www.apexgp.online','https://apex-gp-kohl.vercel.app','http://127.0.0.1:5188','http://localhost:5188','http://127.0.0.1:4173','http://localhost:4173']
 });
 Deno.serve(request=>{
   const url=new URL(request.url),prefix='/competition',index=url.pathname.indexOf(prefix);

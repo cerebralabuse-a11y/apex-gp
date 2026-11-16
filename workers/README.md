@@ -2,7 +2,7 @@
 
 ## Private rooms deployment
 
-Deploy `workers/rooms.mjs` with `wrangler.rooms.jsonc`. This provisions the `RaceRoom` Durable Object; its `GAME_ORIGINS` variable is an exact comma-separated allowlist for the production game and the current Vercel branch preview. Keep preview origins exact rather than allowing every `vercel.app` site.
+Deploy `workers/rooms.mjs` with `wrangler.rooms.jsonc`. This provisions the `RaceRoom` Durable Object; its `GAME_ORIGINS` variable is an exact comma-separated allowlist for the production custom domain and the current Vercel production/branch-preview hosts. Keep preview origins exact rather than allowing every `vercel.app` site.
 
 The public `dist/competition-config.json` contains the deployed Worker origin; it is an endpoint, not a secret. `APEX_ROOMS_URL` can override that origin during a Vercel build. Localhost uses the local Worker at `127.0.0.1:8791`.
 
