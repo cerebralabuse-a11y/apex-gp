@@ -38,14 +38,14 @@ let cars=[],player,selectedColor=storage.get('color','#a2cf3e'),personalBest=Num
 let selectedSetup=setupId(storage.get('car-setup','balanced')),activeSetup=selectedSetup;
 let pendingVerifiedTicket=null,verifiedSession=null,submittingVerified=false,verifiedStartGeneration=0;
 const competition=createCompetitionClient();
-const competitionUI=createCompetitionUI({api:competition,trackId:track.id,onAccount:()=>{if($('race-choice-dialog').open)$('race-choice-dialog').close();openDialog('leaderboard-dialog')},onStart:async()=>{
+const competitionUI=createCompetitionUI({api:competition,trackId:track.id,onAccount:()=>{if($('race-choice-dialog').open)$('race-choice-dialog').close();if($('rooms-dialog').open)$('rooms-dialog').close();openDialog('profile-dialog')},onResumeRanked:()=>{openDialog('race-choice-dialog');void competitionUI.startRanked()},onStart:async()=>{
   if(mapMode!=='classic')throw new Error('Verified beta laps use the original map.');
   const generation=++verifiedStartGeneration,ticket=await competition.startAttempt();
   if(generation!==verifiedStartGeneration||!$('race-choice-dialog').open)throw new Error('Attempt cancelled. Start a new one when ready.');
   $('race-choice-dialog').close();pendingVerifiedTicket=ticket;startRace();
 }});
 const roomClient=createRoomClient({api:competition});
-const roomsUI=createRoomsUI({api:competition,client:roomClient,onAccount:()=>openDialog('leaderboard-dialog')});
+const roomsUI=createRoomsUI({api:competition,client:roomClient,onAccount:()=>openDialog('profile-dialog')});
 let roomRaceActive=false,roomRaceStartAt=0,roomRaceResults=[];
 let motionSetting=storage.get('camera-effects','full');
 if(!['full','subtle','off'].includes(motionSetting))motionSetting='full';
@@ -145,6 +145,7 @@ function resetGrid({verifiedTicket=null,roomPlayers=null,roomSelfId=null}={}){
   }
   if(verifiedTicket)verifiedSession=createRecordedAttempt(verifiedTicket,player);
   $('verified-retry')?.remove();
+  $('ranked-again')?.remove();$('race-again').disabled=false;
   raceTime=0;sessionBest=Infinity;countdown=0;accumulator=0;messageRemaining=0;$('race-message').classList.remove('show');
   $('finish-card').hidden=true;$('start-lights').hidden=true;$('menu-card').hidden=false;
   document.body.classList.remove('racing');document.body.classList.add('on-title');$('session-tag').innerHTML='<i></i> ON THE GRID';
@@ -323,7 +324,9 @@ function invalidateVerified(reason){
 function finishVerified(){
   const run=verifiedSession.run;player.lapTimes=[run.result.timeMs/1000];sessionBest=run.result.timeMs/1000;
   verifiedFinishCard('LAP COMPLETE.','The server is replaying your inputs. Prizes are not active.');
-  const retry=document.createElement('button');retry.id='verified-retry';retry.className='primary-button';retry.textContent='RETRY SAVE';retry.hidden=true;retry.addEventListener('click',()=>submitVerified(verifiedSession));$('finish-card').append(retry);
+  $('race-again').disabled=true;
+  const retry=document.createElement('button');retry.id='verified-retry';retry.className='secondary-button';retry.textContent='RETRY SAVE';retry.hidden=true;retry.addEventListener('click',()=>submitVerified(verifiedSession));$('finish-card').append(retry);
+  const rankedAgain=document.createElement('button');rankedAgain.id='ranked-again';rankedAgain.className='secondary-button';rankedAgain.textContent='RETRY RANKED LAP';rankedAgain.hidden=true;rankedAgain.addEventListener('click',()=>{state='menu';resetGrid();openDialog('race-choice-dialog')});$('finish-card').append(rankedAgain);
   updateUI();void submitVerified(verifiedSession);
 }
 async function submitVerified(session){
@@ -333,7 +336,7 @@ async function submitVerified(session){
     const receipt=await competition.submit(session.ticket.attemptId,session.recording);
     if(!receipt.saved)throw new Error('The server did not save this attempt.');
     competitionUI.showAttemptStatus('Lap verified and saved to the beta leaderboard. Prizes are not active.');
-    if(verifiedSession===session){$('finish-title').textContent='LAP VERIFIED.';$('finish-subtitle').textContent='Saved to the global beta leaderboard. Prizes are not active.';$('finish-best').textContent='SAVED'}
+    if(verifiedSession===session){$('finish-title').textContent='LAP VERIFIED.';$('finish-subtitle').textContent='Saved to the global beta leaderboard. Prizes are not active.';$('finish-best').textContent='SAVED';$('race-again').disabled=false;$('ranked-again').hidden=false}
   }catch(error){
     competitionUI.showAttemptStatus(error.message);
     if(verifiedSession===session){$('finish-subtitle').textContent=error.message;$('finish-best').textContent='UNSAVED';if(retry)retry.hidden=false}
@@ -454,6 +457,7 @@ function openDialog(id){
   if(id==='leaderboard-dialog')$('board-personal-best').textContent=personalBest>0?formatTime(personalBest):'--:--.---';
   dialogReturn=state;if(state==='racing'||state==='countdown')state='paused';clearInputs();$(id).showModal();
   if(id==='leaderboard-dialog')void competitionUI.open();
+  if(id==='profile-dialog')void competitionUI.open();
   if(id==='rooms-dialog')void roomsUI.open();
   if(id==='garage-dialog')garage.open({color:selectedColor,setup:selectedSetup,locked:dialogReturn!=='menu'&&dialogReturn!=='finished'});
 }
@@ -465,7 +469,7 @@ for(const dialog of document.querySelectorAll('dialog')){
 $('start-button').addEventListener('click',()=>openDialog('race-choice-dialog'));
 $('unranked-race-button').addEventListener('click',()=>{$('race-choice-dialog').close();startRace()});
 $('ranked-race-button').addEventListener('click',()=>void competitionUI.startRanked());
-$('race-again').addEventListener('click',()=>{if(roomRaceActive&&roomClient.snapshot){openDialog('rooms-dialog');return}state='menu';roomClient.leave();resetGrid()});
+$('race-again').addEventListener('click',()=>{if($('race-again').disabled)return;if(roomRaceActive&&roomClient.snapshot){openDialog('rooms-dialog');return}state='menu';roomClient.leave();resetGrid()});
 $('settings-button').addEventListener('click',()=>openDialog('settings-dialog'));
 $('setup-button').addEventListener('click',()=>openDialog('settings-dialog'));
 $('mode-button').addEventListener('click',()=>{$('mode-select').focus();openDialog('settings-dialog')});
@@ -483,7 +487,7 @@ $('camera-button').addEventListener('click',cycleCamera);
 $('pause-button').addEventListener('click',()=>roomRaceActive?roomClient.leave():togglePause());
 $('pause-setup').addEventListener('click',()=>{const from=pausedFrom;$('pause-dialog').close();openDialog('settings-dialog');dialogReturn=from});
 $('rotate-back').addEventListener('click',()=>{if(rotationPaused){state='menu';pendingMobileStart=rotationPaused=false;resetGrid();return}void requestLandscape()});
-const mobileRecover=document.createElement('button');mobileRecover.id='mobile-recover';mobileRecover.className='glass-icon';mobileRecover.textContent='↻';mobileRecover.setAttribute('aria-label','Recover to circuit');mobileRecover.addEventListener('click',()=>{if(state==='racing'){clearInputs();recover(player)}});document.querySelector('.session-actions').appendChild(mobileRecover);
+$('touch-recover').addEventListener('click',()=>{if(state==='racing'){clearInputs();recover(player)}});
 $('resume-button').addEventListener('click',togglePause);
 $('restart-button').addEventListener('click',()=>{$('pause-dialog').close();startRace()});
 $('quit-button').addEventListener('click',()=>{state='menu';$('pause-dialog').close();resetGrid()});

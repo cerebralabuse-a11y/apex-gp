@@ -1,5 +1,4 @@
 .mobile-hud,.rotate-prompt{display:none}
-#mobile-recover{display:none}
 .touch-controls{display:none!important}
 .settings-grid input[type=range]{width:100%;accent-color:#edcc85;min-height:40px}
 body.mobile-ui.racing .mobile-hud{display:flex}
@@ -12,10 +11,10 @@ body.mobile-ui.racing .player-account{display:none!important}body.mobile-ui.raci
 .mobile-energy{width:84px;flex-shrink:0}.mobile-energy>span{display:flex;justify-content:space-between;font:700 9px var(--mono);color:#edcc85}.mobile-energy>i{display:block;height:5px;border-radius:4px;margin-top:6px;background:#ffffff20;overflow:hidden}.mobile-energy em{display:block;width:100%;height:100%;background:#edcc85;transition:width .12s linear}
 body.mobile-ui .hud-top{left:auto!important;right:calc(12px + env(safe-area-inset-right))!important;top:calc(11px + env(safe-area-inset-top))!important;bottom:auto!important;transform:none;z-index:5}
 body.mobile-ui .session-actions{gap:5px}body.mobile-ui .session-actions .glass-icon{height:38px;width:38px;display:none!important;border-radius:9px;background:#24262b99}
-body.mobile-ui .session-actions #camera-button,body.mobile-ui .session-actions #pause-button,body.mobile-ui .session-actions #mobile-recover{display:grid!important}
-body.mobile-ui #mobile-recover{font:24px Arial;color:#ffe1a6}
+body.mobile-ui .session-actions #camera-button,body.mobile-ui .session-actions #pause-button{display:grid!important}
 body.mobile-ui .minimap,body.mobile-ui.racing .minimap{top:calc(72px + env(safe-area-inset-top))!important;left:calc(17px + env(safe-area-inset-left))!important;bottom:auto!important;width:104px!important;height:75px!important;border-radius:12px!important;border-width:1px!important;background:#293d2e80!important}
 body.mobile-ui.racing .touch-controls{display:flex!important;position:absolute;z-index:5;left:calc(18px + env(safe-area-inset-left));right:calc(18px + env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom))!important;align-items:flex-end;justify-content:space-between;pointer-events:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.steering-controls{display:flex;align-items:center;gap:10px;pointer-events:auto}.touch-controls #touch-recover{display:grid;place-items:center;width:46px;height:46px;padding:0;border:2px solid #edcc85a8;border-radius:50%;background:#24262bd9;color:#ffe1a6;font:800 19px var(--display);box-shadow:0 3px 14px #0004;touch-action:manipulation;-webkit-tap-highlight-color:transparent}.touch-controls #touch-recover:active{background:#edcc85;color:#24262b}
 .touch-controls .steer-pad{--steer:0;position:relative;display:flex;align-items:center;justify-content:space-between;width:clamp(155px,28vw,255px);height:82px;gap:13px;padding:18px 18px 7px;border:2px solid #f4dfb995;border-radius:44px;background:#20252abf;touch-action:none;pointer-events:auto;box-shadow:0 3px 14px #0003}
 .steer-label{position:absolute;top:9px;left:0;right:0;text-align:center;font:700 9px var(--mono);letter-spacing:2px;color:#fff0d4}.steer-arrow{font:35px var(--body);color:#f6dfb4;line-height:1}
 .steer-track{position:relative;flex:1;height:6px;border-radius:3px;background:repeating-linear-gradient(90deg,#ffffff25 0,#ffffff25 16px,#ffffff40 17px,#ffffff40 18px)}.steer-track i{position:absolute;width:35px;height:35px;left:50%;top:50%;transform:translate(calc(-50% + var(--steer)*43px),-50%);background:#edcc8570;border:2px solid #ffebc3;border-radius:50%;box-shadow:0 0 10px #edcc8520}
