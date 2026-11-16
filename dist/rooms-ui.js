@@ -7,7 +7,7 @@ export function createRoomsUI({api,client,onAccount}){
   const header=node('header','rooms-header'),brand=node('span','title-wordmark','APEX GP / THE PADDOCK'),close=button('← BACK','close-button rooms-back');close.setAttribute('aria-label','Back to game');header.append(brand,close);
   const kicker=node('span','rooms-kicker','FRIENDS ON THE GRID'),title=node('h2','','PRIVATE ROOMS.');title.id='rooms-title';
   const intro=node('p','rooms-intro','Share a code. Race the waterfront together. 2–8 drivers, three laps, original circuit.');
-  const badge=node('p','rooms-badge','MULTIPLAYER BETA · UNRANKED');
+  const badge=node('p','rooms-badge','MULTIPLAYER · UNRANKED');
   const status=node('p','rooms-status','Connecting to your account…');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
   const gate=node('section','rooms-gate'),gateCopy=node('p'),account=button('SIGN IN TO RACE');gate.append(gateCopy,account);account.addEventListener('click',()=>onAccount());
   const entry=node('section','rooms-entry'),host=node('div','rooms-create');host.append(node('h3','','Make your grid.'),node('p','','Create a private lobby and send the code to your friends.'));

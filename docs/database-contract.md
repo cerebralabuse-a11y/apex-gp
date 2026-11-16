@@ -1,4 +1,4 @@
-# Authenticated beta timing database
+# Authenticated ranked timing database
 
 `supabase/schema.sql` is the source for the initial migration. The private `apex_private` schema contains profiles, attempt tickets and accepted lap records. All tables enable RLS with no browser-role policies. `anon`, `authenticated` and `PUBLIC` have no table/schema access or RPC execute rights. Only the backend's `service_role` may call the six public RPCs. Functions use `SECURITY INVOKER` and an empty search path; the standings view uses `security_invoker=true`.
 

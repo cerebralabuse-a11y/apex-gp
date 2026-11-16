@@ -1,16 +1,16 @@
 # APEX GP
 
-## Authenticated leaderboard beta
+## Ranked laps and standings
 
-This branch adds an opt-in **Verified Beta Lap** through the Leaderboard menu. Sign in using an email link, choose a public driver name, then drive an outlap and a flying lap on the original map with Balanced setup. Normal races, controls and browser practice records retain their existing behavior. Pausing, losing focus, opening a menu, recovery or leaving all four wheels outside the permitted surface ends a beta attempt. Only the independent server replay can save its lap time.
+Choose **Ranked Lap** from the race menu, sign in, lock a unique driver name, and complete one clean lap on the original map with the balanced setup. Interrupting the lap or leaving the permitted surface invalidates that attempt. The server independently replays the recorded inputs before saving a time.
 
-The beta uses the dedicated APEX GP Free Supabase project in Mumbai. Its Edge Function hosts the portable Fetch API with built-in server credentials. Vercel continues serving the static game. Public configuration contains only the project URL and publishable key; database credentials are never bundled. The Auth SDK loads when the leaderboard needs it. No Realtime subscriptions or database requests run during normal solo racing.
+Ranked timing uses the dedicated APEX GP Supabase project in Mumbai. Its Edge Function hosts the Fetch API with server-side credentials. Vercel serves the static game. Public configuration contains only the project URL and publishable key; database credentials are never bundled. The Auth SDK loads when online timing is needed. Normal solo racing makes no database requests.
 
 `npm ci && npm run build`, then `npm run dev`. Open the original game on port 4173 or the current review server on port 5188. The callback allowlist contains exact callback URLs for these localhost origins and the existing Vercel domain. Source SQL is in `supabase/schema.sql`, with an applied initial migration and a transactional `supabase/smoke-test.sql` that rolls back all test data. See `docs/database-contract.md`.
 
-The API serves cached top-50 standings and a private personal best, issues database-clock attempt tickets, claims each ticket before replay, and persists accepted results atomically. It enforces ownership, expiration, start budgets, minimum elapsed time, fixed physics/setup/track, ordered gates, duplicate recording hashes and idempotent retries. Equal tick times share a rank. This is a **beta leaderboard with prizes disabled**; bots or fabricated controls that wait out the server clock are not excluded by physics validation alone. Raw replay storage, retention, contest eligibility, human-input review and broader runtime/device validation are still required before prize launch.
+The API serves cached top-50 standings and a private personal best, issues database-clock attempt tickets, claims each ticket before replay, and persists accepted results atomically. It enforces ownership, expiration, start budgets, minimum elapsed time, fixed physics/setup/track, ordered gates, duplicate recording hashes and idempotent retries. Equal tick times share a rank. **Prizes are not active and no reward-claim or payout workflow exists.** Replay validation alone cannot rule out bots or fabricated inputs that wait out the server clock; prize eligibility, anti-abuse review, replay retention and winner contact still need to be built before rewards are offered.
 
-Email sign-in currently uses Supabase's default development mail service, which only permits organization-team email addresses. Configure custom SMTP (or a separately configured social provider), suitable Auth rate limits and abuse controls before admitting the Reddit/public beta. Do not disable email confirmation or grant browser roles lap-writing access to bypass setup. Browser roles cannot execute the private leaderboard RPCs; authenticated mutations go through the backend.
+Email-link sign-in uses Supabase's development mail service, which only permits organization-team email addresses. Configure custom SMTP before offering email links publicly. Keep email confirmation, Auth rate limits and abuse controls enabled. Browser roles cannot execute the private leaderboard RPCs; authenticated mutations go through the backend.
 
 ## Lap-verification development lab
 

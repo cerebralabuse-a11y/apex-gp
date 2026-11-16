@@ -45,12 +45,12 @@ export function createCompetitionHandler({supabaseUrl,publishableKey,secretKey,a
     const method=route==='/profile'?'PUT':route==='/attempts'||submit?'POST':'GET';
     if(!['/status','/leaderboard','/me','/profile','/attempts'].includes(route)&&!submit)return respond(404,{error:'not_found'});
     if(request.method!==method)return respond(405,{error:'method_not_allowed'},{Allow:method});
-    if(route==='/status')return respond(200,{enabled:configured,beta:true,prizeEligible:false,ruleset:RULESET,trackId:TRACK_ID,tickHz:TICK_HZ,maxSeconds:MAX_TICKS/TICK_HZ});
+    if(route==='/status')return respond(200,{enabled:configured,prizeEligible:false,ruleset:RULESET,trackId:TRACK_ID,tickHz:TICK_HZ,maxSeconds:MAX_TICKS/TICK_HZ});
     if(!configured)return respond(503,{error:'unavailable',message:messages.unavailable});
     try{
       if(route==='/leaderboard'){
         if(!boardCache||now()-boardCache.time>15000)boardCache={time:now(),data:await rpc('apex_leaderboard',{})};
-        return respond(200,{...boardCache.data,beta:true,prizeEligible:false},{'Cache-Control':'public, max-age=15'});
+        return respond(200,{...boardCache.data,prizeEligible:false},{'Cache-Control':'public, max-age=15'});
       }
       const userId=await authenticate(request);
       if(!UUID.test(userId))throw new ApiError(401,'unauthorized');

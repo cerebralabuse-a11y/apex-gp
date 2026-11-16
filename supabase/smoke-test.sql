@@ -111,7 +111,7 @@ begin
   assert public.apex_claim_attempt(v_one, v_first, v_hash_one, 24000) = '{"state":"claimed"}'::jsonb, 'first claim failed';
   v_receipt := public.apex_finish_attempt(v_one, v_first, v_hash_one, v_result);
   assert (v_receipt ->> 'saved')::boolean and (v_receipt ->> 'personalBest')::boolean, 'verified result was not saved';
-  assert not (v_receipt ->> 'prizeEligible')::boolean, 'beta result became prize eligible';
+  assert not (v_receipt ->> 'prizeEligible')::boolean, 'ranked result became prize eligible';
   assert (v_receipt -> 'result' ->> 'timeMs')::numeric = 20833.333, 'claimed browser time was trusted';
   assert public.apex_finish_attempt(v_one, v_first, v_hash_one, v_result) = v_receipt, 'finish was not idempotent';
   assert public.apex_claim_attempt(v_one, v_first, v_hash_one, 24000) -> 'receipt' = v_receipt, 'accepted retry did not return its receipt';

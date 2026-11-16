@@ -8,7 +8,7 @@ const USERS=Array.from({length:4},(_,i)=>`00000000-0000-4000-8000-${String(i+1).
 const hash=n=>n.toString(16).padStart(64,'0');
 const result=(ticks=10000,total=24000)=>({ruleset:RULESET,trackId:TRACK,timeTicks:ticks,timeMs:-123,totalTicks:total,gates:28,crossings:31,final:{x:1,z:2,yaw:3,speed:80,energy:10}});
 
-test('PostgreSQL enforces private beta records, one-use attempts and best-lap rankings',async t=>{
+test('PostgreSQL enforces private ranked records, one-use attempts and best-lap rankings',async t=>{
   const db=new PGlite();
   t.after(()=>db.close());
   await db.exec(`

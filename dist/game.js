@@ -39,7 +39,7 @@ let selectedSetup=setupId(storage.get('car-setup','balanced')),activeSetup=selec
 let pendingVerifiedTicket=null,verifiedSession=null,submittingVerified=false,verifiedStartGeneration=0;
 const competition=createCompetitionClient();
 const competitionUI=createCompetitionUI({api:competition,trackId:track.id,onAccount:()=>{if($('race-choice-dialog').open)$('race-choice-dialog').close();if($('rooms-dialog').open)$('rooms-dialog').close();openDialog('profile-dialog')},onResumeRanked:()=>{openDialog('race-choice-dialog');void competitionUI.startRanked()},onStart:async()=>{
-  if(mapMode!=='classic')throw new Error('Verified beta laps use the original map.');
+  if(mapMode!=='classic')throw new Error('Ranked laps use the original map.');
   const generation=++verifiedStartGeneration,ticket=await competition.startAttempt();
   if(generation!==verifiedStartGeneration||!$('race-choice-dialog').open)throw new Error('Attempt cancelled. Start a new one when ready.');
   $('race-choice-dialog').close();pendingVerifiedTicket=ticket;startRace();
@@ -77,7 +77,7 @@ function showRotatePrompt(show){
 }
 function syncOrientation(){
   const portrait=portraitPhone();
-  if(portrait&&verifiedSession&&(state==='racing'||state==='countdown'))invalidateVerified('Rotation interrupted the beta attempt. Start again in landscape.');
+  if(portrait&&verifiedSession&&(state==='racing'||state==='countdown'))invalidateVerified('Rotation interrupted your ranked lap. Start again in landscape.');
   if(portrait&&(state==='racing'||state==='countdown')){pausedFrom=state;state='paused';rotationPaused=true;clearInputs()}
   showRotatePrompt(portrait&&(pendingMobileStart||rotationPaused||state==='menu')&&!document.querySelector('dialog[open]'));
   if(!portrait&&pendingMobileStart){pendingMobileStart=false;startRaceNow()}
@@ -170,7 +170,7 @@ function startRaceNow(){
 }
 function recover(car,automatic=false){
   if(roomRaceActive&&car.isPlayer){notify('RECOVERY IS DISABLED IN PRIVATE ROOMS',2);return}
-  if(car.isPlayer&&verifiedSession){invalidateVerified('Recovery invalidates a beta attempt. Start a new one.');return}
+  if(car.isPlayer&&verifiedSession){invalidateVerified('Recovery invalidates this ranked lap. Start a new one.');return}
   const road=nearestTrack(track,car.x,car.z),p=sampleTrack(track,road.s,car.isPlayer?0:car.aiLane);
   car.x=p.x;car.z=p.z;car.yaw=p.yaw;car.vx=p.tx*(automatic?18:0);car.vz=p.tz*(automatic?18:0);car.speed=automatic?18:0;car.steer=0;car.road=nearestTrack(track,car.x,car.z);car.previousS=p.s;car.recovered=2;car.stuckTime=0;
   if(car.isPlayer){notify('BACK ON TRACK · KEEP PUSHING',2);updateCamera(1,true)}
@@ -213,7 +213,7 @@ function simulate(dt){
     }
     const before=Math.floor(countdown/.65);countdown+=dt;const count=Math.min(5,Math.floor(countdown/.65));
     if(count!==before&&count<=5&&count>0){audio.beep(420,.08);[...$('start-lights').querySelectorAll('i')].forEach((l,i)=>l.classList.toggle('lit',i<count));world.lamps.forEach((l,i)=>l.material.color.set(i<count?'#f3392c':'#351b1e'))}
-    if(countdown>4.45){state='racing';$('start-lights').hidden=true;$('session-tag').innerHTML='<i></i> '+(verifiedSession?'VERIFIED BETA · READY':mode==='race'?'RACE IN PROGRESS':mode==='time'?'TIME TRIAL':'FREE DRIVE');world.lamps.forEach(l=>l.material.color.set('#351b1e'));audio.beep(840,.25);notify(verifiedSession?'CROSS THE LINE TO START YOUR LAP':'LIGHTS OUT. FULL SEND.',3)}
+    if(countdown>4.45){state='racing';$('start-lights').hidden=true;$('session-tag').innerHTML='<i></i> '+(verifiedSession?'RANKED · READY':mode==='race'?'RACE IN PROGRESS':mode==='time'?'TIME TRIAL':'FREE DRIVE');world.lamps.forEach(l=>l.material.color.set('#351b1e'));audio.beep(840,.25);notify(verifiedSession?'CROSS THE LINE TO START YOUR LAP':'LIGHTS OUT. FULL SEND.',3)}
     return;
   }
   if(state!=='racing')return;
@@ -221,7 +221,7 @@ function simulate(dt){
   const input=getPlayerInput();
   if(verifiedSession){
     const before=verifiedSession.run.stage,stage=verifiedSession.step(input);
-    if(before==='ready'&&stage==='timed'){player.lapStart=raceTime;$('session-tag').innerHTML='<i></i> VERIFIED BETA · LAP 1 / 1';notify('LAP STARTED · MAKE IT COUNT',3)}
+    if(before==='ready'&&stage==='timed'){player.lapStart=raceTime;$('session-tag').innerHTML='<i></i> RANKED · LAP 1 / 1';notify('LAP STARTED · MAKE IT COUNT',3)}
     if(stage==='invalid')invalidateVerified(verifiedSession.run.invalidReason);
     else if(stage==='complete')finishVerified();
     return;
@@ -295,8 +295,8 @@ function verifiedFinishCard(title,description){
   state='finished';clearInputs();$('start-lights').hidden=true;$('finish-card').hidden=false;
   $('finish-title').textContent=title;$('finish-subtitle').textContent=description;
   const labels=$('finish-card').querySelectorAll('.finish-stats small');labels[0].textContent='MODE';labels[1].textContent='RANKED LAP';labels[2].textContent='SAVE STATUS';
-  $('finish-position').textContent='BETA';$('finish-time').textContent=verifiedSession?.run.result?formatTime(verifiedSession.run.result.timeMs/1000):'--:--.---';$('finish-best').textContent='UNSAVED';
-  $('session-tag').innerHTML='<i></i> BETA · PRIZES NOT ACTIVE';
+  $('finish-position').textContent='VERIFIED';$('finish-time').textContent=verifiedSession?.run.result?formatTime(verifiedSession.run.result.timeMs/1000):'--:--.---';$('finish-best').textContent='UNSAVED';
+  $('session-tag').innerHTML='<i></i> RANKED · PRIZES NOT ACTIVE';
 }
 function startRoomRace(event){
   if(mapMode!=='classic'||!Array.isArray(event.players)||!event.players.some(p=>p.id===roomClient.selfId))return;
@@ -331,12 +331,12 @@ function finishVerified(){
 }
 async function submitVerified(session){
   if(submittingVerified||session.run.stage!=='complete')return;submittingVerified=true;
-  const retry=$('verified-retry');if(retry)retry.hidden=true;competitionUI.showAttemptStatus('Verifying your beta lap…');
+  const retry=$('verified-retry');if(retry)retry.hidden=true;competitionUI.showAttemptStatus('Verifying your ranked lap…');
   try{
     const receipt=await competition.submit(session.ticket.attemptId,session.recording);
     if(!receipt.saved)throw new Error('The server did not save this attempt.');
-    competitionUI.showAttemptStatus('Lap verified and saved to the beta leaderboard. Prizes are not active.');
-    if(verifiedSession===session){$('finish-title').textContent='LAP VERIFIED.';$('finish-subtitle').textContent='Saved to the global beta leaderboard. Prizes are not active.';$('finish-best').textContent='SAVED';$('race-again').disabled=false;$('ranked-again').hidden=false}
+    competitionUI.showAttemptStatus('Lap verified and saved to the global leaderboard. Prizes are not active.');
+    if(verifiedSession===session){$('finish-title').textContent='LAP VERIFIED.';$('finish-subtitle').textContent='Saved to the global leaderboard. Prizes are not active.';$('finish-best').textContent='SAVED';$('race-again').disabled=false;$('ranked-again').hidden=false}
   }catch(error){
     competitionUI.showAttemptStatus(error.message);
     if(verifiedSession===session){$('finish-subtitle').textContent=error.message;$('finish-best').textContent='UNSAVED';if(retry)retry.hidden=false}
@@ -427,7 +427,7 @@ for(const corner of track.corners){const p=sampleTrack(track,corner.s,19),el=doc
 for(const landmark of world.landmarks){const el=document.createElement('span');el.className='overview-landmark';el.textContent=landmark.title;overview.appendChild(el);overviewLabels.push({el,...landmark})}
 function updateOverviewLabels(){for(const p of overviewLabels){const v=new THREE.Vector3(p.x,p.y,p.z).project(camera),margin=p.el.offsetWidth/2+6;p.el.style.left=clamp((v.x*.5+.5)*overview.clientWidth,margin,overview.clientWidth-margin)+'px';p.el.style.top=(-v.y*.5+.5)*100+'%';p.el.hidden=v.z>1||Math.abs(v.x)>1||Math.abs(v.y)>1}}
 function toggleOverview(){
-  if(verifiedSession&&(state==='racing'||state==='countdown')){invalidateVerified('Opening the map ended the beta attempt. Start again when ready.');return}
+  if(verifiedSession&&(state==='racing'||state==='countdown')){invalidateVerified('Opening the map ended your ranked lap. Start again when ready.');return}
   if(document.querySelector('dialog[open]')||state==='countdown')return;
   if(state==='overview'){state=overviewFrom;overview.hidden=true;document.body.classList.remove('overview');$('map-button').setAttribute('aria-expanded','false');updateCamera(1,true);canvas.focus({preventScroll:true})}
   else{overviewFrom=state;state='overview';clearInputs();document.body.classList.add('overview');overview.hidden=false;$('map-button').setAttribute('aria-expanded','true');updateCamera(1,true);$('close-overview').focus({preventScroll:true})}
@@ -445,7 +445,7 @@ new ResizeObserver(resize).observe(canvas);
 function cycleCamera(){if(state==='overview')toggleOverview();camMode=(camMode+1)%3;$('camera-label').textContent=['ARCADE CAM','COCKPIT CAM','CHASE CAM'][camMode];updateCamera(1,true);storage.set('camera',camMode)}
 function togglePause(){
   if(roomRaceActive){clearInputs();notify('PRIVATE ROOM RACES CANNOT BE PAUSED',2);return}
-  if(verifiedSession&&(state==='racing'||state==='countdown')){invalidateVerified('Pausing or losing focus ends a beta attempt. Start a new one.');return}
+  if(verifiedSession&&(state==='racing'||state==='countdown')){invalidateVerified('Pausing or losing focus ends your ranked lap. Start a new one.');return}
   clearInputs();
   if(state==='paused'&&$('pause-dialog').open){if(portraitPhone()){rotationPaused=true;$('pause-dialog').close();syncOrientation();return}$('pause-dialog').close();state=pausedFrom;canvas.focus({preventScroll:true});return}
   if(state==='racing'||state==='countdown'){pausedFrom=state;state='paused';$('pause-dialog').showModal()}
@@ -453,7 +453,7 @@ function togglePause(){
 function openDialog(id){
   if(roomRaceActive&&(state==='racing'||state==='countdown')){notify('ROOM CONTROLS ARE LOCKED DURING THE RACE',2);return}
   if(document.querySelector('dialog[open]'))return;
-  if(verifiedSession&&(state==='racing'||state==='countdown'))invalidateVerified('Opening a menu ended the beta attempt. Start again when ready.');
+  if(verifiedSession&&(state==='racing'||state==='countdown'))invalidateVerified('Opening a menu ended your ranked lap. Start again when ready.');
   if(id==='leaderboard-dialog'){const practice=$('board-personal-best');practice.textContent=personalBest>0?formatTime(personalBest):'--:--.---';practice.dataset.timeTicks=Number.isFinite(personalBest)&&personalBest>0?String(Math.round(personalBest*120)):''}
   dialogReturn=state;if(state==='racing'||state==='countdown')state='paused';clearInputs();$(id).showModal();
   if(id==='leaderboard-dialog')void competitionUI.open();
@@ -517,7 +517,7 @@ window.addEventListener('keydown',e=>{
   keys.add(e.code);if(e.repeat)return;
   if(e.code==='KeyB'){toggleOverview();return}
   if(state==='overview'){if(e.code==='Escape')toggleOverview();keys.clear();return}
-  if(e.code==='KeyV'){if(verifiedSession&&state==='racing'){invalidateVerified('Photo mode ended the beta attempt.');return}if(state==='photo'){state=photoFrom;document.body.classList.remove('photo')}else if(state==='menu'||state==='racing'){photoFrom=state;state='photo';document.body.classList.add('photo')}clearInputs();return}
+  if(e.code==='KeyV'){if(verifiedSession&&state==='racing'){invalidateVerified('Photo mode ended your ranked lap.');return}if(state==='photo'){state=photoFrom;document.body.classList.remove('photo')}else if(state==='menu'||state==='racing'){photoFrom=state;state='photo';document.body.classList.add('photo')}clearInputs();return}
   if(e.code==='KeyC')cycleCamera();if(e.code==='Escape'||e.code==='KeyP')togglePause();
   if(e.code==='KeyG')openDialog('garage-dialog');if(e.code==='KeyO')openDialog('settings-dialog');if(e.code==='KeyH')openDialog('guide-dialog');
   if(e.code==='KeyR'&&state==='racing')recover(player);if(e.code==='KeyM')audio.set(!audio.enabled);

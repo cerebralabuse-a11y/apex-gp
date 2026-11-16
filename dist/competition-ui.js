@@ -16,11 +16,11 @@ export function createCompetitionUI({api,onStart,onResumeRanked,trackId,onAccoun
   const profileDialog=document.getElementById('profile-dialog');
   const playerAccount=document.getElementById('player-account'),playerAccountLabel=document.getElementById('player-account-label');
   const rankedButton=document.getElementById('ranked-race-button');
-  const entry=element('section','competition-entry');entry.setAttribute('aria-label','Verified beta entry');
+  const entry=element('section','competition-entry');entry.setAttribute('aria-label','Ranked lap entry');
   const account=element('div','competition-account');
   account.append(element('span','competition-kicker','YOUR DRIVER PROFILE'));
   const accountHeading=element('h3','','Choose your driver name.');account.append(accountHeading);
-  const connection=element('p','competition-hint','Connecting to the online beta…');account.append(connection);
+  const connection=element('p','competition-hint','Connecting to ranked timing…');account.append(connection);
 
   const signInForm=element('form','competition-form'),email=field('EMAIL ADDRESS','email','email'),send=button('SEND SIGN-IN LINK');
   email.input.autocomplete='email';email.input.required=true;email.input.maxLength=254;send.type='submit';
@@ -41,19 +41,18 @@ export function createCompetitionUI({api,onStart,onResumeRanked,trackId,onAccoun
   account.append(lockedName);
   const entryStatus=element('p','competition-status');entryStatus.setAttribute('role','status');entryStatus.setAttribute('aria-live','polite');account.append(entryStatus);
 
-  const best=element('div','competition-best'),bestLabel=element('span','competition-kicker','YOUR VERIFIED BETA BEST'),bestTime=element('strong','','--:--.---'),bestRank=element('span','competition-best-rank','No verified lap yet.');
+  const best=element('div','competition-best'),bestLabel=element('span','competition-kicker','YOUR VERIFIED BEST'),bestTime=element('strong','','--:--.---'),bestRank=element('span','competition-best-rank','No verified lap yet.');
   best.append(bestLabel,bestTime,bestRank);account.append(best);entry.append(account);
   profileDialog.querySelector('.profile-content').append(entry);
 
   const boardActions=element('div','competition-board-actions'),boardState=element('p','','Loading global standings…'),boardStats=element('div','competition-board-stats'),refreshButton=button('REFRESH STANDINGS','competition-text-button');
   const podium=element('div','board-podium');podium.setAttribute('role','list');podium.setAttribute('aria-label','Top three verified drivers');podium.hidden=true;
   boardState.setAttribute('role','status');boardState.setAttribute('aria-live','polite');boardActions.append(boardState,boardStats,refreshButton);dialog.querySelector('.board-table-wrap').before(boardActions,podium);
-  dialog.querySelector('.board-status').textContent='BETA / PRIZES NOT ACTIVE';
-  table.caption.textContent='Verified beta fastest lap standings';
-  dialog.querySelector('.board-circuit>span:first-child').textContent='VERIFIED BETA · FASTEST LAP';
+  dialog.querySelector('.board-status').textContent='RANKED · PRIZES NOT ACTIVE';
+  table.caption.textContent='Verified fastest lap standings';
+  dialog.querySelector('.board-circuit>span:first-child').textContent='RANKED · FASTEST LAP';
   dialog.querySelector('.board-intro p').textContent='Set a verified lap. Find your place on the grid.';
-  dialog.querySelector('.board-footer-note').textContent='Beta standings do not award prizes. Verified beta laps and browser-only practice records are separate. Equal tick times share a rank.';
-  const menuTag=document.querySelector('#leaderboard-menu .menu-soon');if(menuTag)menuTag.textContent='BETA';
+  dialog.querySelector('.board-footer-note').textContent='Ranked standings currently do not award prizes. Verified ranked laps and browser-only practice records are separate. Equal tick times share a rank.';
 
   const resumeRankedKey='apex-resume-ranked',authCallback=new URLSearchParams(location.search).get('auth')==='callback';
   let resumeRanked=false;
@@ -112,7 +111,7 @@ export function createCompetitionUI({api,onStart,onResumeRanked,trackId,onAccoun
   function renderBoard(data,currentDriver=''){
     const entries=data?.entries;
     if(!Array.isArray(entries)||entries.some(e=>!Number.isInteger(e.rank)||e.rank<1||typeof e.driver!=='string'||!Number.isInteger(e.timeTicks)||e.timeTicks<=0))throw new Error('Standings could not be read. Please refresh.');
-    if(!entries.length){emptyBoard('The grid is waiting.','No verified beta laps yet. Set the first clean lap.');boardState.textContent='No verified beta laps yet.';boardStats.textContent='0 DRIVERS · NO LAP YET';return}
+    if(!entries.length){emptyBoard('The grid is waiting.','No ranked laps yet. Set the first clean lap.');boardState.textContent='No ranked laps yet.';boardStats.textContent='0 DRIVERS · NO LAP YET';return}
     const fastest=Math.min(...entries.map(e=>e.timeTicks)),average=Math.round(entries.reduce((sum,e)=>sum+e.timeTicks,0)/entries.length),rows=[];
     const practiceTicks=Number(document.getElementById('board-personal-best').dataset.timeTicks),practiceGap=document.getElementById('board-personal-gap');
     const practiceDelta=practiceTicks-fastest;
@@ -121,12 +120,12 @@ export function createCompetitionUI({api,onStart,onResumeRanked,trackId,onAccoun
       const card=element('article',`podium-card${index===0?' podium-leader':''}`),head=element('div','podium-card-head');card.setAttribute('role','listitem');
       head.append(element('strong','podium-position',`P${String(item.rank).padStart(2,'0')}`),element('span',index===0?'podium-record':'podium-gap',index===0?'TRACK RECORD':`+${((item.timeTicks-fastest)/120).toFixed(3)}S`));
       const time=element('div','podium-lap');time.append(element('span','','LAP TIME'),element('strong','',tickTime(item.timeTicks)));
-      card.append(head,element('span','podium-status','VERIFIED BETA'),element('strong','podium-driver',item.driver),time);return card;
+      card.append(head,element('span','podium-status','VERIFIED'),element('strong','podium-driver',item.driver),time);return card;
     }));
     for(const item of entries){
       const row=element('tr','competition-result-row');if(item.rank<=3)row.classList.add('competition-podium');
       const rank=element('td','competition-rank',String(item.rank).padStart(2,'0')),driver=element('th','competition-driver');driver.scope='row';
-      const name=element('strong','driver-name',item.driver),nameLine=element('span','driver-name-line'),verified=element('small','driver-verified','VERIFIED BETA');
+      const name=element('strong','driver-name',item.driver),nameLine=element('span','driver-name-line'),verified=element('small','driver-verified','VERIFIED');
       nameLine.append(name);
       if(item.rank===1)nameLine.append(element('span','driver-pole','P1'));
       if(item.driver===currentDriver)nameLine.append(element('span','driver-you','YOU'));
@@ -136,7 +135,7 @@ export function createCompetitionUI({api,onStart,onResumeRanked,trackId,onAccoun
       const time=element('td','competition-time',tickTime(item.timeTicks)),gap=element('td','competition-gap',item.timeTicks===fastest?'LEADER':`+${((item.timeTicks-fastest)/120).toFixed(3)}`);
       row.append(rank,driver,pace,time,gap);rows.push(row);
     }
-    tbody.replaceChildren(...rows);boardState.textContent='VERIFIED BETA · FASTEST LAP';boardStats.textContent=`${entries.length} ${entries.length===1?'DRIVER':'DRIVERS'} · FASTEST ${tickTime(fastest)} · AVG ${tickTime(average)}`;
+    tbody.replaceChildren(...rows);boardState.textContent='VERIFIED · FASTEST LAP';boardStats.textContent=`${entries.length} ${entries.length===1?'DRIVER':'DRIVERS'} · FASTEST ${tickTime(fastest)} · AVG ${tickTime(average)}`;
   }
   async function refresh(){
     const request=++generation;refreshButton.disabled=true;
@@ -146,8 +145,8 @@ export function createCompetitionUI({api,onStart,onResumeRanked,trackId,onAccoun
       if(!enabled){
         signed=false;profile=null;google.hidden=signInForm.hidden=emailNote.hidden=signedIn.hidden=profileForm.hidden=true;
         renderPlayerAccount('ONLINE SIGN-IN UNAVAILABLE',false);playerAccount.disabled=true;
-        connection.textContent=config.reason||'Online beta is not configured on this host.';
-        emptyBoard('Practice is open.','The online beta is unavailable right now. Your browser-only practice records are still available below.');boardState.textContent='Online beta unavailable.';boardStats.textContent='STANDINGS UNAVAILABLE';return false;
+        connection.textContent=config.reason||'Ranked timing is not configured on this host.';
+        emptyBoard('Practice is open.','Ranked timing is unavailable right now. Your browser-only practice records are still available below.');boardState.textContent='Ranked timing unavailable.';boardStats.textContent='STANDINGS UNAVAILABLE';return false;
       }
       const identity=await api.identity();if(request!==generation)return false;
       signed=!!identity.signedIn;
@@ -155,7 +154,7 @@ export function createCompetitionUI({api,onStart,onResumeRanked,trackId,onAccoun
       if(lastEmail!==(identity.email||null)){profile=null;dirtyName=false;name.input.value='';attemptMessage='';message('');lastEmail=identity.email||null}
       google.hidden=signInForm.hidden=emailNote.hidden=signed;signedIn.hidden=!signed;
       if(signed){identityText.textContent=identity.email||'Signed in'}
-      connection.textContent=signed?'SIGNED IN · VERIFIED BETA':'Sign in to save verified laps across devices.';
+      connection.textContent=signed?'SIGNED IN · RANKED TIMING':'Sign in to save verified laps across devices.';
       identityText.textContent=identity.email||'Signed in';
       const [boardResult,meResult]=await Promise.allSettled([api.leaderboard(),signed?api.me():Promise.resolve(null)]);if(request!==generation)return false;
       if(boardResult.status==='fulfilled')renderBoard(boardResult.value,meResult.status==='fulfilled'?meResult.value?.profile?.driverName||'':profile?.driverName||'');
@@ -168,12 +167,12 @@ export function createCompetitionUI({api,onStart,onResumeRanked,trackId,onAccoun
         if(!dirtyName&&!profile&&!name.input.value)name.input.value=suggestedDriverName();
         if(signed&&!profile&&!profileDialog.open){onAccount?.();setTimeout(()=>name.input.focus({preventScroll:true}),0)}else continueRanked();
         const personal=meResult.value?.best;bestTime.textContent=tickTime(personal?.timeTicks);
-        bestRank.textContent=personal?`GLOBAL RANK ${personal.rank} · VERIFIED BETA`:signed?'No verified lap yet.':'Sign in to see your verified best.';
+        bestRank.textContent=personal?`GLOBAL RANK ${personal.rank} · VERIFIED`:signed?'No verified lap yet.':'Sign in to see your verified best.';
         if(!attemptMessage&&!pending)message(signed&&!profile?'Choose the driver name others will see.':'');
         return true;
       }else{profile=null;bestTime.textContent='--:--.---';bestRank.textContent='Verified best unavailable.';if(!attemptMessage)message(meResult.reason?.message||'Your profile could not load. Please refresh.',true);return false}
     }catch(error){
-      if(request!==generation)return false;enabled=false;profile=null;connection.textContent='The online beta could not connect.';
+      if(request!==generation)return false;enabled=false;profile=null;connection.textContent='Ranked timing could not connect.';
       message(error.message||'Please try again.',true);emptyBoard('Connection interrupted.','Your practice records remain on this browser. Use Refresh standings to reconnect.');boardState.textContent='Could not connect.';boardStats.textContent='STANDINGS OFFLINE';
       return false;
     }finally{if(request===generation)controls()}

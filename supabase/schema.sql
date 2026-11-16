@@ -1,4 +1,4 @@
--- Beta timing records. Browser roles cannot read or write these tables or RPCs.
+-- Ranked timing records. Browser roles cannot read or write these tables or RPCs.
 -- Only the verifier backend's service_role may call these SECURITY INVOKER RPCs.
 create schema apex_private;
 revoke all on schema apex_private from public, anon, authenticated;
@@ -59,7 +59,7 @@ revoke all on apex_private.profiles, apex_private.attempts, apex_private.laps fr
 grant select, insert, update on apex_private.profiles, apex_private.attempts to service_role;
 grant select, insert on apex_private.laps to service_role;
 
--- ponytail: derive best laps at read time for the beta; maintain a best-laps
+-- ponytail: derive best laps at read time; maintain a best-laps
 -- table only if measured record counts make this indexed query expensive.
 create view apex_private.standings with (security_invoker = true) as
   with best as (
