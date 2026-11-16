@@ -176,6 +176,11 @@ function recover(car,automatic=false){
   if(car.isPlayer){notify('BACK ON TRACK · KEEP PUSHING',2);updateCamera(1,true)}
 }
 
+function requestManualRecovery(){
+  if(verifiedSession){notify('RECOVERY DISABLED DURING RANKED LAPS',2);return}
+  clearInputs();recover(player);
+}
+
 function getPlayerInput(){
   let steer=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0);
   if(touch.pointers.has('steer'))steer=touch.steer;
@@ -402,6 +407,7 @@ function updateUI(){
     pauseButton.innerHTML=roomHome?'<svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"/></svg>':'<svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg>';
   }
   pauseButton.disabled=state==='menu'||(state==='finished'&&!roomHome);
+  $('touch-recover').hidden=!!verifiedSession&&(state==='racing'||state==='countdown');
   $('map-button').disabled=state==='countdown';
   $('position').textContent=String(pos).padStart(2,'0');document.querySelector('.race-stat small').textContent='/ '+String(cars.length).padStart(2,'0');
   $('lap').textContent=String(Math.min(player.lap,mode==='race'||mode==='room'?3:999)).padStart(2,'0');
@@ -487,7 +493,7 @@ $('camera-button').addEventListener('click',cycleCamera);
 $('pause-button').addEventListener('click',()=>roomRaceActive?roomClient.leave():togglePause());
 $('pause-setup').addEventListener('click',()=>{const from=pausedFrom;$('pause-dialog').close();openDialog('settings-dialog');dialogReturn=from});
 $('rotate-back').addEventListener('click',()=>{if(rotationPaused){state='menu';pendingMobileStart=rotationPaused=false;resetGrid();return}void requestLandscape()});
-$('touch-recover').addEventListener('click',()=>{if(state==='racing'){clearInputs();recover(player)}});
+$('touch-recover').addEventListener('click',()=>{if(state==='racing')requestManualRecovery()});
 $('resume-button').addEventListener('click',togglePause);
 $('restart-button').addEventListener('click',()=>{$('pause-dialog').close();startRace()});
 $('quit-button').addEventListener('click',()=>{state='menu';$('pause-dialog').close();resetGrid()});
@@ -520,7 +526,7 @@ window.addEventListener('keydown',e=>{
   if(e.code==='KeyV'){if(verifiedSession&&state==='racing'){invalidateVerified('Photo mode ended your ranked lap.');return}if(state==='photo'){state=photoFrom;document.body.classList.remove('photo')}else if(state==='menu'||state==='racing'){photoFrom=state;state='photo';document.body.classList.add('photo')}clearInputs();return}
   if(e.code==='KeyC')cycleCamera();if(e.code==='Escape'||e.code==='KeyP')togglePause();
   if(e.code==='KeyG')openDialog('garage-dialog');if(e.code==='KeyO')openDialog('settings-dialog');if(e.code==='KeyH')openDialog('guide-dialog');
-  if(e.code==='KeyR'&&state==='racing')recover(player);if(e.code==='KeyM')audio.set(!audio.enabled);
+  if(e.code==='KeyR'&&state==='racing')requestManualRecovery();if(e.code==='KeyM')audio.set(!audio.enabled);
   if(e.code==='Enter'&&state==='menu')startRace();
 });
 window.addEventListener('keyup',e=>keys.delete(e.code));

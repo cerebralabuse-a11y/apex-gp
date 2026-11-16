@@ -64,7 +64,7 @@ export function buildNaviMumbai(scene,track){
   for(const x of [-13,13])for(const z of [-11,11]){cylinder(temple,4,5,5,8,cream,x,31,z);cylinder(temple,0,4.5,14,8,m('#d9b276'),x,40,z)}
   label('LAKESIDE TEMPLE',333,360,64);
   // East-side glass complex: five offset glazed wings on a common podium.
-  const office=group(390,440,-.64);box(office,133,5,57,cream,0,2.5);box(office,125,6,48,sand,0,8);
+  const office=group(450,435,-.64);box(office,133,5,57,cream,0,2.5);box(office,125,6,48,sand,0,8);
   for(let i=0;i<5;i++){
     const x=(i-2)*24,h=49+(i%2)*11,z=(i%2)*5;
     box(office,23,h,32,glass,x,13+h/2,z);box(office,24,2,34,cream,x,h+14,z);box(office,12,5,18,cream,x,h+17,z);
@@ -72,7 +72,7 @@ export function buildNaviMumbai(scene,track){
     for(let y=18;y<h+13;y+=6){box(office,23.2,.45,32.4,blue,x,y,z)}
     for(const side of [-1,1])box(office,1.6,h,33,cream,x+side*11.4,13+h/2,z);
   }
-  label('PALM BEACH BUSINESS DISTRICT',390,440,88);
+  label('PALM BEACH BUSINESS DISTRICT',450,435,88);
   // Sports academy with a blue-roofed pavilion, running oval and tennis courts.
   const sports=group(354,469,-.65);sports.scale.setScalar(1.25);sports.updateMatrixWorld(true);
   const sportsRoad=nearestTrack(track,sports.position.x,sports.position.z),edge=sampleTrack(track,sportsRoad.s,13),normal=new THREE.Vector3(-edge.tz,0,edge.tx);
