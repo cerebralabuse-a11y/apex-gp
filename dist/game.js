@@ -11,7 +11,8 @@ import {createCompetitionUI} from './competition-ui.js';
 import {createRoomClient} from './room-client.js';
 import {createRoomsUI} from './rooms-ui.js';
 import {createRecordedAttempt} from './competition-recording.js';
-import { clamp, wrap, formatTime, sampleTrack, nearestTrack, createVehicle, stepVehicle, resolveTrackWall, updateProgress, collideVehicles, getAIControls } from './physics.js';
+import { clamp, wrap, formatTime, sampleTrack, nearestTrack, createVehicle, updateProgress, collideVehicles, getAIControls } from './physics.js';
+import {stepArcadeVehicle,resolveArcadeTrackWall,updateKerbContact} from './arcade-collision.js';
 
 const $ = id => document.getElementById(id);
 const canvas=$('world');
@@ -233,8 +234,8 @@ function simulate(dt){
   }
   if(roomRaceActive){
     if(!player.finished){
-      stepVehicle(player,input,dt,track.halfWidth);player.road=nearestTrack(track,player.x,player.z,player.road.index);
-      resolveTrackWall(player,track);updateProgress(player,track,raceTime,dt);
+      stepArcadeVehicle(player,input,dt,track.halfWidth);player.road=nearestTrack(track,player.x,player.z,player.road.index);
+      updateKerbContact(player,track);resolveArcadeTrackWall(player,track);updateProgress(player,track,raceTime,dt);
       if(player.lap>3){player.finished=true;player.finishTime=raceTime;player.throttle=0;player.brake=0;player.boost=false;notify('CHEQUERED FLAG · WAITING FOR YOUR GRID',3)}
       roomClient.sendState(player);
     }
@@ -247,9 +248,10 @@ function simulate(dt){
       const lead=cars.find(c=>c!==car&&c.road.s-car.road.s>5&&c.road.s-car.road.s<32&&Math.abs(c.road.offset-car.road.offset)<2.4);
       if(lead&&car.speed>40){car.vx+=Math.sin(car.yaw)*1.8*dt;car.vz+=Math.cos(car.yaw)*1.8*dt;if(messageCooldown===0){notify('SLIPSTREAM · MAKE YOUR MOVE',1.7);messageCooldown=12}}
     }
-    stepVehicle(car,controls,dt,track.halfWidth);
+    stepArcadeVehicle(car,controls,dt,track.halfWidth);
     car.road=nearestTrack(track,car.x,car.z,car.road.index);
-    if(resolveTrackWall(car,track)){
+    updateKerbContact(car,track);
+    if(resolveArcadeTrackWall(car,track)){
       if(car.isPlayer&&car.collisionCooldown===0){notify('BARRIER CONTACT · RECOVER WITH R',2);car.collisionCooldown=2;audio.beep(90,.12)}
     }
     const completed=updateProgress(car,track,raceTime,dt);

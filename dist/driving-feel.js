@@ -2,10 +2,10 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 // Camera-only feedback: never changes the car, steering or simulation clock.
 export function createDrivingFeel(){
-  let speed=0,boost=0,kick=0,acceleration=0,previousSpeed=0,wasBoost=false,time=0;
+  let speed=0,boost=0,kick=0,impact=0,acceleration=0,previousSpeed=0,wasBoost=false,time=0;
   const output={fov:0,pullback:0,x:0,y:0,roll:0,speed:0,boost:0};
   function reset(currentSpeed=0,currentBoost=false){
-    speed=boost=kick=acceleration=time=0;previousSpeed=currentSpeed;wasBoost=currentBoost;
+    speed=boost=kick=impact=acceleration=time=0;previousSpeed=currentSpeed;wasBoost=currentBoost;
     for(const key in output)output[key]=0;
     return output;
   }
@@ -13,6 +13,7 @@ export function createDrivingFeel(){
     if(!active)return reset(car.speed,car.boost);
     dt=clamp(dt,0,.1);if(!dt)return output;
     time+=dt;
+    if(car.impact){impact=Math.max(impact,car.impact.shake||0);car.impact=null}impact*=Math.exp(-dt*11);
     const deploying=!!car.boost&&car.speed>5;
     if(deploying&&!wasBoost)kick=1;
     wasBoost=deploying;
@@ -27,9 +28,11 @@ export function createDrivingFeel(){
     output.pullback=(Math.max(0,acceleration)*.55+boost*.55+kick*.65)*strength;
     output.x=(Math.sin(time*43)*.6+Math.sin(time*71)*.4)*vibration;
     output.y=(Math.sin(time*57+.7)*.65+Math.sin(time*89)*.35)*vibration*.65;
-    output.roll=(Math.sin(time*37)*boost*.0015+Math.sin(time*51)*kick*.002)*strength;
+    output.x+=Math.sin(time*83)*impact*.14*strength;output.y+=Math.cos(time*71)*impact*.1*strength;
+    output.roll=(Math.sin(time*37)*boost*.0015+Math.sin(time*51)*kick*.002+Math.sin(time*67)*impact*.012)*strength;
     output.speed=speed;output.boost=boost;
     return output;
   }
   return{update,reset};
 }
+

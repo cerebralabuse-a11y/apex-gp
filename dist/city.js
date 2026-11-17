@@ -115,8 +115,30 @@ export function buildNaviMumbai(scene,track){
   const palmSites=[];
   for(let i=0;i<track.length;i+=37){const j=Math.floor(i/track.step),p=track.points[j],q=track.points[j+1],d=Math.hypot(q.x-p.x,q.z-p.z);palmSites.push({x:p.x-(q.z-p.z)/d*25,z:p.z+(q.x-p.x)/d*25})}
   for(const [u,v] of [[205,346],[220,354],[240,350],[320,350],[345,365],[365,467],[338,470],[240,470]])palmSites.push(mapToWorld(u,v));
-  const trunkGeo=new THREE.CylinderGeometry(.35,.7,12,6),frondGeo=new THREE.ConeGeometry(1,1,3),trunks=new THREE.InstancedMesh(trunkGeo,m('#8b7048'),palmSites.length),fronds=new THREE.InstancedMesh(frondGeo,m('#527733'),palmSites.length*7),dummy=new THREE.Object3D();
-  palmSites.forEach((p,i)=>{dummy.position.set(p.x,6,p.z);dummy.rotation.set(0,0,0);dummy.scale.set(1,1,1);dummy.updateMatrix();trunks.setMatrixAt(i,dummy.matrix);for(let j=0;j<7;j++){const a=j/7*Math.PI*2;dummy.position.set(p.x+Math.sin(a)*3,12.2,p.z+Math.cos(a)*3);dummy.rotation.set(Math.PI/2+.25,a,0);dummy.scale.set(1.1,6,1);dummy.updateMatrix();fronds.setMatrixAt(i*7+j,dummy.matrix)}});trunks.castShadow=fronds.castShadow=true;cityRoot.add(trunks,fronds);
+  const palmScale=.6,palmTrunkGeo=new THREE.CylinderGeometry(.27,.42,3.1,6),trunks=new THREE.InstancedMesh(palmTrunkGeo,m('#8b7048'),palmSites.length*4),frondPositions=[],frondIndices=[],frondLength=7.2,frondSegments=14;
+  const frondHeight=t=>1.35*Math.sin(t*Math.PI*.62)-2.7*t*t,frondSpine=(t,z=0)=>[frondLength*t,frondHeight(t),z];
+  function frondTriangle(a,b,c){const start=frondPositions.length/3;frondPositions.push(...a,...b,...c);frondIndices.push(start,start+1,start+2)}
+  for(let i=0;i<frondSegments;i++){
+    const t=.06+i*.064,t2=t+.055,tip=Math.min(.99,t+.12);
+    frondTriangle(frondSpine(t,.055),frondSpine(t2,.055),frondSpine(t2,-.055));frondTriangle(frondSpine(t,.055),frondSpine(t2,-.055),frondSpine(t,-.055));
+    for(const side of [-1,1]){
+      const width=side*1.3*Math.sin(Math.PI*t)*(1-.2*t),leafTip=[frondLength*tip,frondHeight(tip)-.16,width];
+      frondTriangle(frondSpine(t),frondSpine(t2),leafTip);
+    }
+  }
+  const frondGeo=new THREE.BufferGeometry();frondGeo.setAttribute('position',new THREE.Float32BufferAttribute(frondPositions,3));frondGeo.setIndex(frondIndices);frondGeo.computeVertexNormals();
+  const frondMat=new THREE.MeshStandardMaterial({color:'#527733',roughness:1,flatShading:true,side:THREE.DoubleSide}),fronds=new THREE.InstancedMesh(frondGeo,frondMat,palmSites.length*9),dummy=new THREE.Object3D(),palmUp=new THREE.Vector3(0,1,0);
+  const palmGreens=['#41652d','#527733','#65883b','#789443'];
+  palmSites.forEach((p,i)=>{
+    const bend=rnd()*Math.PI*2,bx=Math.sin(bend)*1.5*palmScale,bz=Math.cos(bend)*1.5*palmScale;
+    for(let segment=0;segment<4;segment++){
+      const y=(1.5+segment*3)*palmScale,t=(y/(12*palmScale))**2;dummy.position.set(p.x+bx*t,y,p.z+bz*t);dummy.quaternion.setFromUnitVectors(palmUp,new THREE.Vector3(bx*.09,1,bz*.09).normalize());dummy.scale.setScalar(palmScale);dummy.updateMatrix();trunks.setMatrixAt(i*4+segment,dummy.matrix);
+    }
+    for(let j=0;j<9;j++){
+      const a=j/9*Math.PI*2;dummy.position.set(p.x+bx,12.4*palmScale,p.z+bz);dummy.rotation.set(0,a,0);dummy.scale.setScalar((.84+rnd()*.3)*palmScale);dummy.updateMatrix();const index=i*9+j;fronds.setMatrixAt(index,dummy.matrix);fronds.setColorAt(index,new THREE.Color(palmGreens[Math.floor(rnd()*palmGreens.length)]));
+    }
+  });if(fronds.instanceColor)fronds.instanceColor.needsUpdate=true;trunks.castShadow=true;fronds.castShadow=false;cityRoot.add(trunks,fronds);
+
   temple.scale.setScalar(1.5);office.scale.setScalar(1.35);sports.scale.setScalar(1.25);bird.scale.setScalar(1.5);
   cityRoot.updateMatrixWorld(true);
   const batches=new Map(),originals=[];
